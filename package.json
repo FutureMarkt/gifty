@@ -1,0 +1,28 @@
+{
+  "name": "gifty",
+  "version": "1.0.0",
+  "description": "Gift-giving service inside the blockchain.",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx hardhat test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FutureMarkt/gifty.git"
+  },
+  "keywords": [
+    "Blockchain",
+    "Gift",
+    "On-chainGift"
+  ],
+  "author": "Future Markt",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/FutureMarkt/gifty/issues"
+  },
+  "homepage": "https://github.com/FutureMarkt/gifty#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
+    "hardhat": "^2.12.0"
+  }
+}
