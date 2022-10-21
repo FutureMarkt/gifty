@@ -32,7 +32,11 @@ contract GiftyToken is ERC20, Ownable {
     event GiftyAddressChanged(address indexed newGiftyAddress);
 
     // TODO: will be changed to upgradeable version
-    constructor() ERC20("GiftyToken", "GFT") {}
+    constructor(address initialSupplyReceiver, uint256 initialSupply)
+        ERC20("GiftyToken", "GFT")
+    {
+        _mint(initialSupplyReceiver, initialSupply);
+    }
 
     /// @notice Modifier of access to functions that are available only to the Gifty contract
     modifier onlyGiftyContract() {
