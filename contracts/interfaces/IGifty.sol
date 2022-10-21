@@ -25,5 +25,7 @@ interface IGifty {
 
     function changeTokenStatuses(address[] calldata tokensAddress) external;
 
+    function splitCommission() external;
+
     function version() external pure returns (uint256);
 }
