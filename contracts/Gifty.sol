@@ -4,19 +4,47 @@ pragma solidity 0.8.17;
 import "./interfaces/IGifty.sol";
 
 contract Gifty is IGifty {
-    function createGift(
+    function giftETH(address receiver, uint256 amount)
+        external
+        payable
+        override
+    {}
+
+    function giftETHWithGFTCommission(address receiver)
+        external
+        payable
+        override
+    {}
+
+    function giftToken(
         address receiver,
-        address tokenAddress,
+        address tokenToGift,
+        address tokenToPayCommission,
         uint256 amount
     ) external override {}
 
-    function receiveGift(address from, uint256 nonce) external {}
+    function claimGift(address from, uint256 nonce) external override {}
 
-    function changeCommission(uint256 newCommissionRate) external {}
+    function addReceiverAddressToGift(address receiver, uint256 nonce)
+        external
+        override
+    {}
 
-    function changePiggyBox(address newPiggyBox) external {}
+    function changeCommissionRate(uint256 newCommissionRate)
+        external
+        override
+    {}
 
-    function changeTokenStatus(address tokenAddress) external {}
+    function changePiggyBox(address newPiggyBox) external override {}
 
-    function changeTokenStatuses(address[] calldata tokensAddress) external {}
+    function changeTokenStatus(address tokenAddress) external override {}
+
+    function changeTokenStatuses(address[] calldata tokensAddress)
+        external
+        override
+    {}
+
+    function version() external pure override returns (uint256) {
+        return 1;
+    }
 }

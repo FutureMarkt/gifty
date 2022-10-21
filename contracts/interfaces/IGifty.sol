@@ -2,19 +2,28 @@
 pragma solidity 0.8.17;
 
 interface IGifty {
-    function createGift(
+    function giftETH(address receiver, uint256 amount) external payable;
+
+    function giftETHWithGFTCommission(address receiver) external payable;
+
+    function giftToken(
         address receiver,
-        address tokenAddress,
+        address tokenToGift,
+        address tokenToPayCommission,
         uint256 amount
     ) external;
 
-    function receiveGift(address from, uint256 nonce) external;
+    function claimGift(address from, uint256 nonce) external;
 
-    function changeCommission(uint256 newCommissionRate) external;
+    function addReceiverAddressToGift(address receiver, uint256 nonce) external;
+
+    function changeCommissionRate(uint256 newCommissionRate) external;
 
     function changePiggyBox(address newPiggyBox) external;
 
     function changeTokenStatus(address tokenAddress) external;
 
     function changeTokenStatuses(address[] calldata tokensAddress) external;
+
+    function version() external pure returns (uint256);
 }
