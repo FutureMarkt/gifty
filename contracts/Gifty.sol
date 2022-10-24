@@ -7,122 +7,141 @@ import "./interfaces/IGiftyToken.sol";
 import "./GiftyLibraries/ExternalAccountsInteraction.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-error Gifty__YouAreTryingToAddANonContractToTheAllowedTokens();
+import "hardhat/console.sol";
+
+error Gfity__theTokenIndexesShouldGoInDecreasingOrder(uint256 firstIndex, uint256 secondIndex);
+error Gifty__youAreTryingToAddANonContractToTheAllowedTokens(address nonContract);
+error Gifty__attemptToAccessAnElementAtAnOutOfBoundsOfArray(uint256 givenIndex, uint256 lastIndex);
 
 contract Gifty is IGifty, Ownable {
-    using ExternalAccountsInteraction for address;
+	using ExternalAccountsInteraction for address;
 
-    struct TokenInfo {
-        uint248 index;
-        bool isAllowed;
-    }
+	/**
+	 * @notice The contract to which the EARNED commission from all gifts is transferred.
+	 * EARNED - commission after all burning deductions and other manipulations.
+	 */
+	address private s_piggyBox;
 
-    address private s_piggyBox;
-    IGiftyToken private s_giftyToken;
+	/// @notice The main token of the platform
+	IGiftyToken private s_giftyToken;
 
-    mapping(address => TokenInfo) private s_tokenInfo;
-    address[] private s_allowedTokens;
+	/**
+	 * @notice Mapping of allowed tokens - will return the "true" if the token is in the Gifty project.
+	 * address - address of potential token
+	 */
+	mapping(address => bool) private s_isTokenAllowed;
 
-    event PiggyBoxChanged(address indexed newPiggyBox);
-    event TokenAdded(address indexed token);
-    event TokenDeleted(address indexed token);
+	/// @notice list of all allowed tokens in the Gifty project
+	address[] private s_allowedTokens;
 
-    function giftETH(address receiver, uint256 amount) external payable {}
+	/**
+	 * @notice It is emitted when changing the address of the piggyBox.
+	 * @param newPiggyBox - new address of the piggyBox
+	 */
+	event PiggyBoxChanged(address indexed newPiggyBox);
 
-    function giftETHWithGFTCommission(address receiver) external payable {}
+	/**
+	 * @notice Emitted when a new token is added
+	 * @param token - address of the newly added token
+	 */
+	event TokenAdded(address indexed token);
 
-    function giftToken(
-        address receiver,
-        address tokenToGift,
-        address tokenToPayCommission,
-        uint256 amount
-    ) external {}
+	/**
+	 * @notice Emitted when the token is removed from the platform
+	 * @param token - address of the deleted token
+	 */
+	event TokenDeleted(address indexed token);
 
-    function claimGift(address from, uint256 nonce) external {}
+	function giftETH(address receiver, uint256 amount) external payable {}
 
-    function addReceiverAddressToGift(address receiver, uint256 nonce)
-        external
-    {}
+	function giftETHWithGFTCommission(address receiver) external payable {}
 
-    function changeCommissionRate(uint256 newCommissionRate)
-        external
-        onlyOwner
-    {}
+	function giftToken(
+		address receiver,
+		address tokenToGift,
+		address tokenToPayCommission,
+		uint256 amount
+	) external {}
 
-    function changePiggyBox(address newPiggyBox) external onlyOwner {
-        s_piggyBox = newPiggyBox;
-        emit PiggyBoxChanged(newPiggyBox);
-    }
+	function claimGift(address from, uint256 nonce) external {}
 
-    function changeTokenStatus(address tokenAddress) public onlyOwner {
-        _changeTokenStatus(tokenAddress);
-    }
+	function addReceiverAddressToGift(address receiver, uint256 nonce) external {}
 
-    function changeTokenStatuses(address[] calldata tokensAddress)
-        external
-        onlyOwner
-    {
-        uint256 tokensToAdd = tokensAddress.length;
+	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
 
-        for (uint256 i; i < tokensToAdd; i++) {
-            _changeTokenStatus(tokensAddress[i]);
-        }
-    }
+	function changePiggyBox(address newPiggyBox) external onlyOwner {
+		s_piggyBox = newPiggyBox;
+		emit PiggyBoxChanged(newPiggyBox);
+	}
 
-    function splitCommission() external onlyOwner {}
+	function addTokens(address[] calldata tokens) external onlyOwner {
+		uint256 amountOfTokens = tokens.length;
 
-    function version() external pure returns (uint256) {
-        return 1;
-    }
+		for (uint256 i; i < amountOfTokens; i++) {
+			_addToken(tokens[i]);
+		}
+	}
 
-    function _changeTokenStatus(address tokenAddress) private {
-        // Checking whether the address which are trying to add is a contract?
-        if (!tokenAddress.isContract())
-            revert Gifty__YouAreTryingToAddANonContractToTheAllowedTokens();
+	function deleteTokens(uint256[] calldata tokenIndexes) external onlyOwner {
+		uint256 amountOfTokens = tokenIndexes.length;
 
-        // Get information about this token in our contract
-        TokenInfo memory currentTokenInfo = s_tokenInfo[tokenAddress];
+		for (uint256 i; i < amountOfTokens - 1; i++) {
+			if (tokenIndexes[i] <= tokenIndexes[i + 1])
+				revert Gfity__theTokenIndexesShouldGoInDecreasingOrder(i, i + 1);
+		}
 
-        /**
-         * If the token has already been added to the contract at the moment,
-         * remove it from the available tokens.
-         */
-        if (currentTokenInfo.isAllowed) {
-            /**
-             * We take the last element in the available tokens
-             * and change its place with the token being deleted.
-             */
-            uint256 lastElement = s_allowedTokens.length - 1;
+		for (uint256 i; i < amountOfTokens; i++) {
+			_deleteToken(tokenIndexes[i]);
+		}
+	}
 
-            s_allowedTokens[currentTokenInfo.index] = s_allowedTokens[
-                lastElement
-            ];
+	function splitCommission() external onlyOwner {}
 
-            // Deleting information about the token
-            // We delete a specific index, instead of using .pop() as it is cheaper.
-            delete s_allowedTokens[lastElement];
-            delete s_tokenInfo[tokenAddress];
+	function isTokenAllowed(address token) external view returns (bool) {
+		return s_isTokenAllowed[token];
+	}
 
-            emit TokenDeleted(tokenAddress);
+	function getAllowedTokens() external view returns (address[] memory) {
+		return s_allowedTokens;
+	}
 
-            /**
-             * If the token has not been added to the contract yet,
-             * add it to the list of available tokens.
-             */
-        } else {
-            /**
-             * We add the token to the array of available tokens
-             * and add TokenInfo structure.
-             */
-            s_allowedTokens.push(tokenAddress);
-            uint248 newTokenIndex = uint248(s_allowedTokens.length - 1);
+	function getAmountOfAllowedTokens() external view returns (uint256) {
+		return s_allowedTokens.length;
+	}
 
-            s_tokenInfo[tokenAddress] = TokenInfo({
-                index: newTokenIndex,
-                isAllowed: true
-            });
+	function version() external pure returns (uint256) {
+		return 1;
+	}
 
-            emit TokenAdded(tokenAddress);
-        }
-    }
+	function _addToken(address token) private {
+		// Checking whether the address which are trying to add is a contract?
+		if (!token.isContract())
+			revert Gifty__youAreTryingToAddANonContractToTheAllowedTokens(token);
+
+		// Change token status and push to array of available tokens
+		s_isTokenAllowed[token] = true;
+		s_allowedTokens.push(token);
+
+		emit TokenAdded(token);
+	}
+
+	function _deleteToken(uint256 index) private {
+		/**
+		 * We take the last element in the available tokens
+		 * and change its place with the token being deleted.
+		 */
+		uint256 lastElementIndex = s_allowedTokens.length - 1;
+
+		if (index > lastElementIndex)
+			revert Gifty__attemptToAccessAnElementAtAnOutOfBoundsOfArray(index, lastElementIndex);
+
+		address tokenAddress = s_allowedTokens[index];
+		s_allowedTokens[index] = s_allowedTokens[lastElementIndex];
+
+		// Delte token status and from list of available tokens
+		s_allowedTokens.pop();
+		delete s_isTokenAllowed[tokenAddress];
+
+		emit TokenDeleted(tokenAddress);
+	}
 }
