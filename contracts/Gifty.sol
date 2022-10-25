@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 import "hardhat/console.sol";
 
-error Gfity__theTokenIndexesShouldGoInDecreasingOrder(uint256 firstIndex, uint256 secondIndex);
 error Gifty__youAreTryingToAddANonContractToTheAllowedTokens(address nonContract);
 error Gifty__attemptToAccessAnElementAtAnOutOfBoundsOfArray(uint256 givenIndex, uint256 lastIndex);
 
@@ -85,11 +84,6 @@ contract Gifty is IGifty, Ownable {
 	function deleteTokens(uint256[] calldata tokenIndexes) external onlyOwner {
 		uint256 amountOfTokens = tokenIndexes.length;
 
-		for (uint256 i; i < amountOfTokens - 1; i++) {
-			if (tokenIndexes[i] <= tokenIndexes[i + 1])
-				revert Gfity__theTokenIndexesShouldGoInDecreasingOrder(i, i + 1);
-		}
-
 		for (uint256 i; i < amountOfTokens; i++) {
 			_deleteToken(tokenIndexes[i]);
 		}
@@ -126,9 +120,9 @@ contract Gifty is IGifty, Ownable {
 	}
 
 	function _deleteToken(uint256 index) private {
-		/**
-		 * We take the last element in the available tokens
-		 * and change its place with the token being deleted.
+		/*
+		  We take the last element in the available tokens
+		  and change its place with the token being deleted.
 		 */
 		uint256 lastElementIndex = s_allowedTokens.length - 1;
 

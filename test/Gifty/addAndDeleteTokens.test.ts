@@ -1,10 +1,11 @@
-import { ethers } from "hardhat";
 import { expect } from "chai";
+import { ethers } from "hardhat";
+import { BigNumber } from "ethers";
 
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "./fixtures/GiftyFixture";
 
-import { BigNumber } from "ethers";
+import { MockToken, MockToken__factory } from "../../typechain-types";
 
 const zeroAddress: string = ethers.constants.AddressZero;
 let sampleToken: string;
@@ -161,23 +162,47 @@ describe("Gifty | Add and delete allowed tokens", function () {
 			expect(amountOfAllowedTokens).eq(0);
 		});
 
-		it("Delete many tokens | If the token sequence is non-decreasing, throw an error.", async function () {
-			const { gifty, giftyToken } = await loadFixture(GiftyFixture);
-			const tokensExample: string[] = [
-				gifty.address,
-				giftyToken.address,
-			];
+		it("Delete many tokens - deleted exact tokens", async function () {
+			const { gifty, giftyToken, owner } = await loadFixture(
+				GiftyFixture
+			);
 
-			//Add
-			await gifty.addTokens(tokensExample);
+			// Create testTokens
+			const testTokens: string[] = [gifty.address, giftyToken.address];
+
+			for (let i = 0; i < 3; i++) {
+				const testToken: MockToken = await new MockToken__factory(
+					owner
+				).deploy();
+
+				testTokens.push(testToken.address);
+			}
+
+			//Add array of tokens to the allowedTokens
+			await gifty.addTokens(testTokens);
+
+			const listOfAllowedTokens: string[] =
+				await gifty.getAllowedTokens();
+
+			// For example we delete 2 tokens from the middle of the array
+			const [, , tokensToBeDeleted1, tokensToBeDeleted2]: string[] =
+				listOfAllowedTokens;
 
 			// Delete
-			await expect(
-				gifty.deleteTokens([0, 1])
-			).to.be.revertedWithCustomError(
-				gifty,
-				"Gfity__theTokenIndexesShouldGoInDecreasingOrder"
-			);
+			await gifty.deleteTokens([2, 3]);
+
+			// Is the exact tokens deleted?
+			const isAllowed0 = await gifty.isTokenAllowed(tokensToBeDeleted1);
+			const isAllowed1 = await gifty.isTokenAllowed(tokensToBeDeleted2);
+
+			expect(isAllowed0).false;
+			expect(isAllowed1).false;
+
+			// Is length correct?
+			const amountOfAllowedTokens =
+				await gifty.getAmountOfAllowedTokens();
+
+			expect(amountOfAllowedTokens).eq(3);
 		});
 	});
 });
