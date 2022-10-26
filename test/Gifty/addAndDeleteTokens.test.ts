@@ -25,10 +25,7 @@ describe("Gifty | Add and delete allowed tokens", function () {
 
 			await expect(
 				gifty.addTokens([zeroAddress])
-			).to.be.revertedWithCustomError(
-				gifty,
-				"Gifty__youAreTryingToAddANonContractToTheAllowedTokens"
-			);
+			).to.be.revertedWithCustomError(gifty, "Gifty__error_0");
 		});
 
 		it("After successfully adding the token, the status should be true", async function () {
@@ -84,6 +81,20 @@ describe("Gifty | Add and delete allowed tokens", function () {
 				await gifty.getAmountOfAllowedTokens();
 
 			expect(lengthBefore.sub(1)).eq(lengthAfter);
+		});
+
+		it("If you pass an incorrect token index -> an error will be reverted", async function () {
+			const { gifty } = await loadFixture(GiftyFixture);
+
+			// Add
+			await gifty.addTokens([sampleToken]);
+
+			// Deltete
+
+			expect(gifty.deleteTokens([1])).to.be.revertedWithCustomError(
+				gifty,
+				"Gifty__error_1"
+			);
 		});
 
 		it("Delete token should delete isAllowed flag", async function () {

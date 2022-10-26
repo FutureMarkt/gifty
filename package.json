@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/FutureMarkt/gifty#readme",
   "devDependencies": {
+    "@chainlink/contracts": "^0.5.1",
     "@nomicfoundation/hardhat-toolbox": "^2.0.0",
     "@openzeppelin/contracts": "^4.7.3",
     "dotenv": "^16.0.3",
