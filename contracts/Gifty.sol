@@ -350,6 +350,7 @@ contract Gifty is IGifty, Ownable {
 	function splitCommission() external onlyOwner {}
 
 	/************ PRIVATE FUNCTIONS *************/
+
 	function _addToken(address token) private {
 		// Checking whether the address which are trying to add is a contract?
 		if (!token.isContract()) revert Gifty__error_0(token);
