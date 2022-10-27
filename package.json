@@ -1,31 +1,34 @@
 {
-  "name": "gifty",
-  "version": "1.0.0",
-  "description": "Gift-giving service inside the blockchain.",
-  "main": "index.js",
-  "scripts": {
-    "test": "npx hardhat test --typecheck"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/FutureMarkt/gifty.git"
-  },
-  "keywords": [
-    "Blockchain",
-    "Gift",
-    "On-chainGift"
-  ],
-  "author": "Future Markt",
-  "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/FutureMarkt/gifty/issues"
-  },
-  "homepage": "https://github.com/FutureMarkt/gifty#readme",
-  "devDependencies": {
-    "@chainlink/contracts": "^0.5.1",
-    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
-    "@openzeppelin/contracts": "^4.7.3",
-    "dotenv": "^16.0.3",
-    "hardhat": "^2.12.0"
-  }
+	"name": "gifty",
+	"version": "1.0.0",
+	"description": "Gift-giving service inside the blockchain.",
+	"main": "index.js",
+	"scripts": {
+		"test": "npx hardhat test --typecheck",
+		"solhint": "solhint --config .solhint.json \"contracts/**.sol\""
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/FutureMarkt/gifty.git"
+	},
+	"keywords": [
+		"Blockchain",
+		"Gift",
+		"On-chainGift"
+	],
+	"author": "Future Markt",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/FutureMarkt/gifty/issues"
+	},
+	"homepage": "https://github.com/FutureMarkt/gifty#readme",
+	"devDependencies": {
+		"@chainlink/contracts": "^0.5.1",
+		"@nomicfoundation/hardhat-toolbox": "^2.0.0",
+		"@openzeppelin/contracts": "^4.7.3",
+		"dotenv": "^16.0.3",
+		"hardhat": "^2.12.0",
+		"solhint": "^3.3.7",
+		"solhint-plugin-chainlink-solidity": "npm:@chainlink/solhint-plugin-chainlink-solidity@^1.0.1"
+	}
 }

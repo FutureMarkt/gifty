@@ -1,16 +1,12 @@
-// Fixtures
 import { GiftyTokenFixture } from "./fixtures/GiftyTokenFixture";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
-// Types || classes
 import { BigNumber } from "ethers";
-import { ethers } from "hardhat";
+import { OneEther } from "../TestHelper";
 
-// Functions
 import { expect } from "chai";
 
-// Variables for test
-const amount: BigNumber = ethers.utils.parseEther("100000");
+const amount: BigNumber = OneEther;
 
 // TODO:
 // When gifty contract will be created write test, it can burn tokens

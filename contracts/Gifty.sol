@@ -1,16 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-// interfaces
 import "./interfaces/IGifty.sol";
 import "./interfaces/IGiftyToken.sol";
 
-// Libs
 import "./GiftyLibraries/ExternalAccountsInteraction.sol";
 import "./GiftyLibraries/PriceConverter.sol";
 
-// External libs
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
 /**
@@ -44,12 +42,24 @@ error Gifty__error_2(uint256 giftAmount, uint256 minimumAmount);
  */
 error Gifty__error_3(uint256 yourValue, uint256 commission);
 
+/**
+ * @notice The Price Feed for this token was not found, please report it to support
+ * @param token - The address of the token for which PriceFeed was not found
+ */
+error Gifty__error_4(address token);
+
+/**
+ * @notice The amount specified for the gift is less than the transferred value
+ */
+error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
+
 // TODO add to constructor / initializer addToPriceFeed address of ETH: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
 
 contract Gifty is IGifty, Ownable {
 	using ExternalAccountsInteraction for address;
 	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for uint256;
+	using SafeERC20 for IERC20;
 
 	// TODO Without wallet?
 	struct Gift {
@@ -97,6 +107,8 @@ contract Gifty is IGifty, Ownable {
 
 	/// @notice The main token of the platform
 	IGiftyToken private s_giftyToken;
+
+	mapping(address => uint256) private s_giftyCommission;
 
 	/**
 	 * @notice Mapping of allowed tokens - will return the "true" if the token is in the Gifty project.
@@ -150,6 +162,11 @@ contract Gifty is IGifty, Ownable {
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
 	event PriceFeedChanged(address indexed token, address indexed priceFeed);
 
+	constructor(IGiftyToken giftyToken, address piggyBox) {
+		s_giftyToken = giftyToken;
+		s_piggyBox = piggyBox;
+	}
+
 	function giftETH(address receiver, uint256 amount) external payable {
 		_chargeCommission(amount, TypeOfCommission.ETH);
 		_createGift(receiver, amount, TypeOfGift.ETH);
@@ -200,12 +217,20 @@ contract Gifty is IGifty, Ownable {
 		return s_allowedTokens.length;
 	}
 
+	function getUserInfo(address user) external view returns (UserInfo memory) {
+		return s_userInformation[user];
+	}
+
 	function getPriceFeedForToken(address token) external view returns (AggregatorV3Interface) {
 		return s_priceFeeds[token];
 	}
 
 	function getOverpaidETHAmount(address user) external view returns (uint256) {
 		return s_commissionSurplusesETH[user];
+	}
+
+	function getGiftyBalance(address token) external view returns (uint256) {
+		return s_giftyCommission[token];
 	}
 
 	function version() external pure returns (uint256) {
@@ -226,13 +251,20 @@ contract Gifty is IGifty, Ownable {
 		} else if (commissionType == TypeOfCommission.TOKEN) {
 			// TODO commission token - 100% paid from token
 		} else {
+			if (msg.value < amount) revert Gifty__error_5(amount, msg.value);
+
+			address ETH = _getETHAddress();
 			/* 
                 When giving ETH and paying commission in ETH - 
                 commission it will be charged from the delta, which is calculated by the formula:
                 total transferred - the amount of the gift.
                 The excess will be returned to the sender.
             */
-			uint256 commissionPaid = msg.value - amount;
+
+			uint256 commissionPaid;
+			unchecked {
+				commissionPaid = msg.value - amount;
+			}
 
 			// What is the commission amount for this gift?
 			uint256 commissionShouldBePaid = _calculateCommission(amount, commissionRate);
@@ -246,19 +278,32 @@ contract Gifty is IGifty, Ownable {
                 * We do not transfer the excess immediately,
                 * because the gift can be made through a contract that does not support receiving ETH.
             */
-			else if (commissionPaid > commissionShouldBePaid)
-				s_commissionSurplusesETH[msg.sender] = commissionPaid - commissionShouldBePaid;
+			else if (commissionPaid > commissionShouldBePaid) {
+				unchecked {
+					s_commissionSurplusesETH[msg.sender] =
+						s_commissionSurplusesETH[msg.sender] +
+						(commissionPaid - commissionShouldBePaid);
+				}
+			}
+
+			// We replenish the balance of the Gifty in the amount of the commission.
+			unchecked {
+				s_giftyCommission[ETH] = s_giftyCommission[ETH] + commissionShouldBePaid;
+			}
 
 			// Get price feed (ETH / USD)
 			// About this address:
 			// https://ethereum.stackexchange.com/questions/87352/why-does-this-address-have-a-balance
-			AggregatorV3Interface priceFeedETH = s_priceFeeds[
-				0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-			];
+			AggregatorV3Interface priceFeedETH = _getPriceFeed(ETH);
 
 			// Calculate and update financial information in dollar terms
 			_updateTheUserFinInfo(amount, commissionRate, priceFeedETH);
 		}
+	}
+
+	function _getPriceFeed(address token) private view returns (AggregatorV3Interface priceFeed) {
+		priceFeed = s_priceFeeds[token];
+		if (address(priceFeed) == address(0)) revert Gifty__error_4(token);
 	}
 
 	function _updateTheUserFinInfo(
@@ -279,13 +324,15 @@ contract Gifty is IGifty, Ownable {
 		// Updating the user's financial information
 		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
 
-		currentUserFinInfo.totalTurnoverInUSD =
-			currentUserFinInfo.totalTurnoverInUSD +
-			giftPriceInUSD;
+		unchecked {
+			currentUserFinInfo.totalTurnoverInUSD =
+				currentUserFinInfo.totalTurnoverInUSD +
+				giftPriceInUSD;
 
-		currentUserFinInfo.commissionPayedInUSD =
-			currentUserFinInfo.commissionPayedInUSD +
-			commissionInUSD;
+			currentUserFinInfo.commissionPayedInUSD =
+				currentUserFinInfo.commissionPayedInUSD +
+				commissionInUSD;
+		}
 	}
 
 	function _calculateGiftPriceAndCommissionInUSD(
@@ -298,7 +345,7 @@ contract Gifty is IGifty, Ownable {
 	}
 
 	// TODO commission rate? Grades? Roles?
-	function getCommissionRate() internal pure returns (uint256, uint256) {
+	function getCommissionRate() public pure returns (uint256, uint256) {
 		return (100, 75);
 	}
 
@@ -331,16 +378,12 @@ contract Gifty is IGifty, Ownable {
 		}
 	}
 
-	function deleteTokens(uint256[] calldata tokenIndexes) external onlyOwner {
-		uint256 amountOfTokens = tokenIndexes.length;
-
-		for (uint256 i; i < amountOfTokens; i++) {
-			_deleteToken(tokenIndexes[i]);
-		}
+	function deleteToken(uint256 tokenIndex) external onlyOwner {
+		_deleteToken(tokenIndex);
 	}
 
 	function changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
-		external
+		public
 		onlyOwner
 	{
 		s_priceFeeds[token] = aggregatorForToken;
@@ -350,6 +393,10 @@ contract Gifty is IGifty, Ownable {
 	function splitCommission() external onlyOwner {}
 
 	/************ PRIVATE FUNCTIONS *************/
+
+	function _getETHAddress() private pure returns (address) {
+		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+	}
 
 	function _addToken(address token) private {
 		// Checking whether the address which are trying to add is a contract?
@@ -362,6 +409,7 @@ contract Gifty is IGifty, Ownable {
 		emit TokenAdded(token);
 	}
 
+	// TODO: multiple deletion?
 	function _deleteToken(uint256 index) private {
 		/*
 		  We take the last element in the available tokens
@@ -377,6 +425,10 @@ contract Gifty is IGifty, Ownable {
 		// Delte token status and from list of available tokens
 		s_allowedTokens.pop();
 		delete s_isTokenAllowed[tokenAddress];
+
+		// Transfer commission to PiggyBox
+		IERC20(tokenAddress).safeTransfer(s_piggyBox, s_giftyCommission[tokenAddress]);
+		delete s_giftyCommission[tokenAddress];
 
 		emit TokenDeleted(tokenAddress);
 	}
