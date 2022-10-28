@@ -18,13 +18,11 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 error Gifty__error_0(address nonContract);
 
 /**
- * @notice An incorrect token index was passed.
- * @notice An attempt to access an element whose index exceeds the maximum index of the array.
+ * @notice It will be thrown when trying to delete a token that is not in the list of allowed tokens.
  *
- * @param givenIndex - the index you passed
- * @param lastIndex - index of the last element in the array
+ * @param tokenNotFound - the token that was tried to be deleted
  */
-error Gifty__error_1(uint256 givenIndex, uint256 lastIndex);
+error Gifty__error_1(address tokenNotFound);
 
 /**
  * @notice The amount for the gift that you gave is too small,
@@ -39,6 +37,7 @@ error Gifty__error_2(uint256 giftAmount, uint256 minimumAmount);
  * @notice You haven't paid, or you don't have enough funds to pay the commission.
  *
  * @param yourValue - the amount that you allowed to use the contract / or paid
+ * @param commission - How much did you have to pay
  */
 error Gifty__error_3(uint256 yourValue, uint256 commission);
 
@@ -50,6 +49,9 @@ error Gifty__error_4(address token);
 
 /**
  * @notice The amount specified for the gift is less than the transferred value
+ *
+ * @param giftAmount - how much do you want to give
+ * @param transferredValue - how much did you actually transfer
  */
 error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
 
@@ -378,8 +380,26 @@ contract Gifty is IGifty, Ownable {
 		}
 	}
 
-	function deleteToken(uint256 tokenIndex) external onlyOwner {
-		_deleteToken(tokenIndex);
+	function deleteTokens(address[] calldata tokens) external onlyOwner {
+		for (uint256 i; i < tokens.length; i++) {
+			address[] memory allowedTokens = s_allowedTokens;
+
+			// Since token index can be 0
+			uint256 tokenIndex = 777;
+
+			// Search for the token index to delete
+			for (uint256 j; j < allowedTokens.length; j++) {
+				if (allowedTokens[j] == tokens[i]) {
+					tokenIndex = j;
+					break;
+				}
+			}
+
+			// If the index is not found, the token is not in the system.
+			if (tokenIndex == 777) revert Gifty__error_1(tokens[i]);
+
+			_deleteToken(tokens[i], tokenIndex);
+		}
 	}
 
 	function changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
@@ -409,27 +429,23 @@ contract Gifty is IGifty, Ownable {
 		emit TokenAdded(token);
 	}
 
-	// TODO: multiple deletion?
-	function _deleteToken(uint256 index) private {
+	function _deleteToken(address tokenToBeDeleted, uint256 tokenIndex) private {
 		/*
 		  We take the last element in the available tokens
 		  and change its place with the token being deleted.
 		 */
+
 		uint256 lastElementIndex = s_allowedTokens.length - 1;
+		s_allowedTokens[tokenIndex] = s_allowedTokens[lastElementIndex];
 
-		if (index > lastElementIndex) revert Gifty__error_1(index, lastElementIndex);
-
-		address tokenAddress = s_allowedTokens[index];
-		s_allowedTokens[index] = s_allowedTokens[lastElementIndex];
-
-		// Delte token status and from list of available tokens
+		// Delete token from allowedTokensList and change status
 		s_allowedTokens.pop();
-		delete s_isTokenAllowed[tokenAddress];
+		delete s_isTokenAllowed[tokenToBeDeleted];
 
 		// Transfer commission to PiggyBox
-		IERC20(tokenAddress).safeTransfer(s_piggyBox, s_giftyCommission[tokenAddress]);
-		delete s_giftyCommission[tokenAddress];
+		IERC20(tokenToBeDeleted).safeTransfer(s_piggyBox, s_giftyCommission[tokenToBeDeleted]);
+		delete s_giftyCommission[tokenToBeDeleted];
 
-		emit TokenDeleted(tokenAddress);
+		emit TokenDeleted(tokenToBeDeleted);
 	}
 }

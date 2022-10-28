@@ -4,7 +4,9 @@ import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 
-let sampleToken: string;
+import { MockToken, MockToken__factory } from "../../../typechain-types";
+
+let sampleToken: string, listOfAllowedTokens: string[];
 
 describe("Delete token", function () {
 	it("Delete token should delete them from allowed tokens", async function () {
@@ -17,7 +19,7 @@ describe("Delete token", function () {
 		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		// Deltete
-		await gifty.deleteToken(0);
+		await gifty.deleteTokens([sampleToken]);
 		const lengthAfter: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		expect(lengthBefore.sub(1)).eq(lengthAfter);
@@ -30,10 +32,9 @@ describe("Delete token", function () {
 		await gifty.addTokens([sampleToken]);
 
 		// Deltete
-		expect(gifty.deleteToken([0])).to.be.revertedWithCustomError(
-			gifty,
-			"Gifty__error_1"
-		);
+		expect(
+			gifty.deleteTokens([sampleToken])
+		).to.be.revertedWithCustomError(gifty, "Gifty__error_1");
 	});
 
 	it("Delete token should delete isAllowed flag", async function () {
@@ -43,7 +44,7 @@ describe("Delete token", function () {
 		await gifty.addTokens([sampleToken]);
 
 		// Deltete
-		await gifty.deleteToken(0);
+		await gifty.deleteTokens([sampleToken]);
 
 		const isAllowed = await gifty.isTokenAllowed(sampleToken);
 		expect(isAllowed).false;
@@ -53,8 +54,201 @@ describe("Delete token", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 		await gifty.addTokens([sampleToken]);
 
-		await expect(gifty.deleteToken(0))
+		await expect(gifty.deleteTokens([sampleToken]))
 			.emit(gifty, "TokenDeleted")
 			.withArgs(sampleToken);
+	});
+
+	it("Delete many tokens - works correctly", async function () {
+		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
+
+		const newMockToken: MockToken = await new MockToken__factory(
+			owner
+		).deploy();
+
+		const tokensExample: string[] = [
+			giftyToken.address,
+			newMockToken.address,
+		];
+
+		//Add
+		await gifty.addTokens(tokensExample);
+
+		// Delete
+		await gifty.deleteTokens(tokensExample);
+
+		const isAllowed0 = await gifty.isTokenAllowed(tokensExample[0]);
+		const isAllowed1 = await gifty.isTokenAllowed(tokensExample[1]);
+
+		expect(isAllowed0).false;
+		expect(isAllowed1).false;
+
+		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
+
+		expect(amountOfAllowedTokens).eq(0);
+	});
+
+	it("Delete many tokens - deleted exact tokens", async function () {
+		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+
+		// Create testTokens
+		const testTokens: string[] = [giftyToken.address];
+
+		for (let i = 0; i < 4; i++) {
+			const testToken: MockToken = await new MockToken__factory(
+				owner
+			).deploy();
+
+			testTokens.push(testToken.address);
+		}
+
+		//Add array of tokens to the allowedTokens
+		await gifty.addTokens(testTokens);
+
+		const listOfAllowedTokens: string[] = await gifty.getAllowedTokens();
+
+		// For example we delete 2 tokens from the middle of the array
+		const tokensToBeDeleted: string[] = listOfAllowedTokens.slice(1, 3);
+
+		// Delete
+		await gifty.deleteTokens(tokensToBeDeleted);
+
+		// Is the exact tokens deleted?
+		const isAllowed0 = await gifty.isTokenAllowed(tokensToBeDeleted[0]);
+		const isAllowed1 = await gifty.isTokenAllowed(tokensToBeDeleted[1]);
+
+		expect(isAllowed0).false;
+		expect(isAllowed1).false;
+
+		// Is length correct?
+		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
+
+		expect(amountOfAllowedTokens).eq(3);
+	});
+
+	it("Delete many tokens - from the middle of the array", async function () {
+		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+
+		// Create testTokens
+		const testTokens: string[] = [giftyToken.address];
+
+		for (let i = 0; i < 20; i++) {
+			const testToken: MockToken = await new MockToken__factory(
+				owner
+			).deploy();
+
+			testTokens.push(testToken.address);
+		}
+
+		//Add array of tokens to the allowedTokens
+		await gifty.addTokens(testTokens);
+
+		listOfAllowedTokens = await gifty.getAllowedTokens();
+
+		// For example we delete 2 tokens from the middle of the array
+		const tokensToBeDeleted: string[] = listOfAllowedTokens.slice(7, 15);
+
+		// Delete
+		await gifty.deleteTokens(tokensToBeDeleted);
+
+		for (let i = 0; i < tokensToBeDeleted.length; i++) {
+			const isTokenAllowed: boolean = await gifty.isTokenAllowed(
+				tokensToBeDeleted[i]
+			);
+
+			expect(isTokenAllowed).false;
+		}
+
+		// Is length correct?
+		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
+
+		expect(amountOfAllowedTokens).eq(
+			testTokens.length - tokensToBeDeleted.length
+		);
+	});
+
+	it("Deleting from different parts of the array", async function () {
+		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+
+		// Create testTokens
+		const testTokens: string[] = [giftyToken.address];
+
+		for (let i = 0; i < 20; i++) {
+			const testToken: MockToken = await new MockToken__factory(
+				owner
+			).deploy();
+
+			testTokens.push(testToken.address);
+		}
+
+		//Add array of tokens to the allowedTokens
+		await gifty.addTokens(testTokens);
+
+		// For example we delete 2 tokens from the middle of the array
+		const tokensToBeDeleted: string[] = [
+			listOfAllowedTokens[2],
+			listOfAllowedTokens[6],
+			listOfAllowedTokens[10],
+			listOfAllowedTokens[14],
+			listOfAllowedTokens[19],
+		];
+
+		// Delete
+		await gifty.deleteTokens(tokensToBeDeleted);
+
+		for (let i = 0; i < tokensToBeDeleted.length; i++) {
+			const isTokenAllowed: boolean = await gifty.isTokenAllowed(
+				tokensToBeDeleted[i]
+			);
+
+			expect(isTokenAllowed).false;
+		}
+
+		// Is length correct?
+		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
+
+		expect(amountOfAllowedTokens).eq(
+			testTokens.length - tokensToBeDeleted.length
+		);
+	});
+
+	it("Deleted tokens are no longer present in the allowedTokens", async function () {
+		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+
+		// Create testTokens
+		const testTokens: string[] = [giftyToken.address];
+
+		for (let i = 0; i < 20; i++) {
+			const testToken: MockToken = await new MockToken__factory(
+				owner
+			).deploy();
+
+			testTokens.push(testToken.address);
+		}
+
+		//Add array of tokens to the allowedTokens
+		await gifty.addTokens(testTokens);
+
+		// For example we delete 2 tokens from the middle of the array
+		const tokensToBeDeleted: string[] = [
+			listOfAllowedTokens[2],
+			listOfAllowedTokens[6],
+			listOfAllowedTokens[10],
+			listOfAllowedTokens[14],
+			listOfAllowedTokens[19],
+		];
+
+		// Delete
+		await gifty.deleteTokens(tokensToBeDeleted);
+
+		const allowedTokens: string[] = await gifty.getAllowedTokens();
+
+		for (let i = 0; i < tokensToBeDeleted.length; i++) {
+			const isTokenIntoArray: boolean = allowedTokens.includes(
+				tokensToBeDeleted[i]
+			);
+
+			expect(isTokenIntoArray).false;
+		}
 	});
 });

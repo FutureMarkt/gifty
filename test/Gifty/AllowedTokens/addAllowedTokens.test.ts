@@ -4,6 +4,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 
 import { ZeroAddress } from "../../TestHelper";
+import { MockToken, MockToken__factory } from "../../../typechain-types";
 
 let sampleToken: string;
 
@@ -59,5 +60,34 @@ describe("Add token", function () {
 		await expect(gifty.addTokens([sampleToken]))
 			.emit(gifty, "TokenAdded")
 			.withArgs(sampleToken);
+	});
+
+	it("Add many tokens - works correctly", async function () {
+		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
+
+		const newMockToken: MockToken = await new MockToken__factory(
+			owner
+		).deploy();
+
+		const tokensExample: string[] = [
+			giftyToken.address,
+			newMockToken.address,
+		];
+
+		/**
+		 * In order not to create additional contracts for tests,
+		 * we will take the Gifty contract itself as a second token
+		 */
+		await gifty.addTokens(tokensExample);
+
+		const isAllowed0 = await gifty.isTokenAllowed(tokensExample[0]);
+		const isAllowed1 = await gifty.isTokenAllowed(tokensExample[1]);
+
+		expect(isAllowed0).true;
+		expect(isAllowed1).true;
+
+		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
+
+		expect(amountOfAllowedTokens).eq(2);
 	});
 });
