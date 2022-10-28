@@ -1,31 +1,23 @@
-// Fixtures
 import { GiftyTokenFixture } from "./fixtures/GiftyTokenFixture";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
-// Types || classes
-import { ethers } from "hardhat";
-
-// Functions
 import { expect } from "chai";
 
-// Variables for test
-const zeroAddress: string = ethers.constants.AddressZero;
+import { ZeroAddress } from "../TestHelper";
 
 describe("GiftyToken | changeGiftyAddress", function () {
 	it("Not an owner can't successfully exucute function", async function () {
 		const { signers, giftyToken } = await loadFixture(GiftyTokenFixture);
 
 		await expect(
-			giftyToken.connect(signers[1]).changeGiftyAddress(zeroAddress)
+			giftyToken.connect(signers[1]).changeGiftyAddress(ZeroAddress)
 		).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 
 	it("Revert if newGiftyAddress is not a contract", async function () {
 		const { giftyToken } = await loadFixture(GiftyTokenFixture);
 
-		await expect(
-			giftyToken.changeGiftyAddress(zeroAddress)
-		).to.be.revertedWithCustomError(
+		await expect(giftyToken.changeGiftyAddress(ZeroAddress)).to.be.revertedWithCustomError(
 			giftyToken,
 			"GiftyToken__ChangingTheGiftyContractAddressToANonContractAddress"
 		);
