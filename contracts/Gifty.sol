@@ -169,11 +169,13 @@ contract Gifty is IGifty, Ownable {
 		s_piggyBox = piggyBox;
 	}
 
+	// TODO add reentrancy guard
 	function giftETH(address receiver, uint256 amount) external payable {
 		_chargeCommission(amount, TypeOfCommission.ETH);
 		_createGift(receiver, amount, TypeOfGift.ETH);
 	}
 
+	// TODO add reentrancy guard
 	function giftETHWithGFTCommission(address receiver) external payable {}
 
 	function giftToken(
