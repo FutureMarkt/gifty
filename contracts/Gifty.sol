@@ -1,63 +1,33 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
+// ! EXAMPLE
+/* -------------------- -------------------- */
+
+/* --------------------Interfaces-------------------- */
 import "./interfaces/IGifty.sol";
 import "./interfaces/IGiftyToken.sol";
 
+/* --------------------Libs-------------------- */
 import "./GiftyLibraries/ExternalAccountsInteraction.sol";
 import "./GiftyLibraries/PriceConverter.sol";
 
+/* --------------------Utils-------------------- */
+import "./utils/ReentrancyGuard.sol";
+
+/* --------------------OpenZeppelin-------------------- */
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+/* --------------------ChainLink-------------------- */
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-/**
- * @notice You are trying to add an account that is not a contract to the list of allowed tokens.
- * @param nonContract - The address of the account that caused the error. (Not a contract)
- */
-error Gifty__error_0(address nonContract);
-
-/**
- * @notice It will be thrown when trying to delete a token that is not in the list of allowed tokens.
- *
- * @param tokenNotFound - the token that was tried to be deleted
- */
-error Gifty__error_1(address tokenNotFound);
-
-/**
- * @notice The amount for the gift that you gave is too small,
- * @notice we cannot calculate the commission from it.
- *
- * @param giftAmount - Your amount for the gift
- * @param minimumAmount - Minimum value
- */
-error Gifty__error_2(uint256 giftAmount, uint256 minimumAmount);
-
-/**
- * @notice You haven't paid, or you don't have enough funds to pay the commission.
- *
- * @param yourValue - the amount that you allowed to use the contract / or paid
- * @param commission - How much did you have to pay
- */
-error Gifty__error_3(uint256 yourValue, uint256 commission);
-
-/**
- * @notice The Price Feed for this token was not found, please report it to support
- * @param token - The address of the token for which PriceFeed was not found
- */
-error Gifty__error_4(address token);
-
-/**
- * @notice The amount specified for the gift is less than the transferred value
- *
- * @param giftAmount - how much do you want to give
- * @param transferredValue - how much did you actually transfer
- */
-error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
+/* --------------------Error list-------------------- */
+import "./Errors.sol";
 
 // TODO add to constructor / initializer addToPriceFeed address of ETH: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
 
-contract Gifty is IGifty, Ownable {
+contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	using ExternalAccountsInteraction for address;
 	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for uint256;
@@ -116,7 +86,13 @@ contract Gifty is IGifty, Ownable {
 	 * @notice Mapping of allowed tokens - will return the "true" if the token is in the Gifty project.
 	 * address - address of potential token
 	 */
-	mapping(address => bool) internal s_isTokenAllowed;
+
+	struct TokenInfo {
+		uint248 indexInTheArray;
+		bool isTokenAllowed;
+	}
+
+	mapping(address => TokenInfo) internal s_tokenInfo;
 
 	// TODO: Is the gift contained in receiver mapping or gifter?
 	mapping(address => mapping(uint256 => Gift)) internal s_userGifts;
@@ -170,13 +146,13 @@ contract Gifty is IGifty, Ownable {
 	}
 
 	// TODO add reentrancy guard
-	function giftETH(address receiver, uint256 amount) external payable {
+	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
 		_chargeCommission(amount, TypeOfCommission.ETH);
 		_createGift(receiver, amount, TypeOfGift.ETH);
 	}
 
 	// TODO add reentrancy guard
-	function giftETHWithGFTCommission(address receiver) external payable {}
+	function giftETHWithGFTCommission(address receiver) external payable nonReentrant {}
 
 	function giftToken(
 		address receiver,
@@ -207,41 +183,7 @@ contract Gifty is IGifty, Ownable {
 		emit GiftCreated(msg.sender, receiver, giftType, amount);
 	}
 
-	/************ GETTER FUNCTIONS *************/
-
-	function isTokenAllowed(address token) external view returns (bool) {
-		return s_isTokenAllowed[token];
-	}
-
-	function getAllowedTokens() external view returns (address[] memory) {
-		return s_allowedTokens;
-	}
-
-	function getAmountOfAllowedTokens() external view returns (uint256) {
-		return s_allowedTokens.length;
-	}
-
-	function getUserInfo(address user) external view returns (UserInfo memory) {
-		return s_userInformation[user];
-	}
-
-	function getPriceFeedForToken(address token) external view returns (AggregatorV3Interface) {
-		return s_priceFeeds[token];
-	}
-
-	function getOverpaidETHAmount(address user) external view returns (uint256) {
-		return s_commissionSurplusesETH[user];
-	}
-
-	function getGiftyBalance(address token) external view returns (uint256) {
-		return s_giftyCommission[token];
-	}
-
-	function version() external pure returns (uint256) {
-		return 1;
-	}
-
-	/************ COMMISSIONS FUNCTIONS *************/
+	/* --------------------Internal functions-------------------- */
 
 	function _chargeCommission(uint256 amount, TypeOfCommission commissionType) internal {
 		// Get a commission interest rate for the gift.
@@ -305,7 +247,7 @@ contract Gifty is IGifty, Ownable {
 		}
 	}
 
-	function _getPriceFeed(address token) private view returns (AggregatorV3Interface priceFeed) {
+	function _getPriceFeed(address token) internal view returns (AggregatorV3Interface priceFeed) {
 		priceFeed = s_priceFeeds[token];
 		if (address(priceFeed) == address(0)) revert Gifty__error_4(token);
 	}
@@ -314,7 +256,7 @@ contract Gifty is IGifty, Ownable {
 		uint256 amount,
 		uint256 commissionRate,
 		AggregatorV3Interface priceFeed
-	) private {
+	) internal {
 		/*
             Calculate the equivalent of the gift amount and commission in USD,
             for accounting in the personal account and issuing statuses.
@@ -362,10 +304,11 @@ contract Gifty is IGifty, Ownable {
 		if (amount < minimumValue) revert Gifty__error_2(amount, minimumValue);
 
 		// Division by 10000 since the decimals is 2
+		// TODO delete magic number
 		return (amount * commissionRate) / 10000;
 	}
 
-	/************ OWNER'S FUNCTIONS *************/
+	/* --------------------OnlyOwner functions-------------------- */
 
 	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
 
@@ -375,32 +318,14 @@ contract Gifty is IGifty, Ownable {
 	}
 
 	function addTokens(address[] calldata tokens) external onlyOwner {
-		uint256 amountOfTokens = tokens.length;
-
-		for (uint256 i; i < amountOfTokens; i++) {
+		for (uint256 i; i < tokens.length; i++) {
 			_addToken(tokens[i]);
 		}
 	}
 
 	function deleteTokens(address[] calldata tokens) external onlyOwner {
 		for (uint256 i; i < tokens.length; i++) {
-			address[] memory allowedTokens = s_allowedTokens;
-
-			// Since token index can be 0
-			uint256 tokenIndex = 777;
-
-			// Search for the token index to delete
-			for (uint256 j; j < allowedTokens.length; j++) {
-				if (allowedTokens[j] == tokens[i]) {
-					tokenIndex = j;
-					break;
-				}
-			}
-
-			// If the index is not found, the token is not in the system.
-			if (tokenIndex == 777) revert Gifty__error_1(tokens[i]);
-
-			_deleteToken(tokens[i], tokenIndex);
+			_deleteToken(tokens[i]);
 		}
 	}
 
@@ -414,7 +339,7 @@ contract Gifty is IGifty, Ownable {
 
 	function splitCommission() external onlyOwner {}
 
-	/************ PRIVATE FUNCTIONS *************/
+	/* --------------------Private functions-------------------- */
 
 	function _getETHAddress() private pure returns (address) {
 		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
@@ -424,30 +349,80 @@ contract Gifty is IGifty, Ownable {
 		// Checking whether the address which are trying to add is a contract?
 		if (!token.isContract()) revert Gifty__error_0(token);
 
-		// Change token status and push to array of available tokens
-		s_isTokenAllowed[token] = true;
+		// The current length is the future index for the added token
+		uint256 newIndex = s_allowedTokens.length;
+
+		// Push token to the array of allowed tokens and set token information
 		s_allowedTokens.push(token);
+		s_tokenInfo[token] = TokenInfo({isTokenAllowed: true, indexInTheArray: uint248(newIndex)});
 
 		emit TokenAdded(token);
 	}
 
-	function _deleteToken(address tokenToBeDeleted, uint256 tokenIndex) private {
+	function _deleteToken(address BeingDeletedToken) private {
+		// Get the index of the token being deleted
+		TokenInfo memory tokenBeingDeletedInfo = s_tokenInfo[BeingDeletedToken];
+
+		// TODO add comments
+		if (!tokenBeingDeletedInfo.isTokenAllowed) revert Gifty__error_1(BeingDeletedToken);
 		/*
 		  We take the last element in the available tokens
 		  and change its place with the token being deleted.
 		 */
-
 		uint256 lastElementIndex = s_allowedTokens.length - 1;
-		s_allowedTokens[tokenIndex] = s_allowedTokens[lastElementIndex];
 
-		// Delete token from allowedTokensList and change status
+		// The address of the token that will take the place of the token to be deleted
+		address tokenToSwap = s_allowedTokens[lastElementIndex];
+
+		// Replacing the token in the array
+		s_allowedTokens[tokenBeingDeletedInfo.indexInTheArray] = tokenToSwap;
+
+		// Changing the index of the token in its information
+		s_tokenInfo[tokenToSwap].indexInTheArray = tokenBeingDeletedInfo.indexInTheArray;
+
+		// Delete the last element in the array (tokenToSwap), since it took the place of the deleted token
 		s_allowedTokens.pop();
-		delete s_isTokenAllowed[tokenToBeDeleted];
+		delete s_tokenInfo[BeingDeletedToken];
 
+		// TODO create transfer to piggyBox and paste here
 		// Transfer commission to PiggyBox
-		IERC20(tokenToBeDeleted).safeTransfer(s_piggyBox, s_giftyCommission[tokenToBeDeleted]);
-		delete s_giftyCommission[tokenToBeDeleted];
+		IERC20(BeingDeletedToken).safeTransfer(s_piggyBox, s_giftyCommission[BeingDeletedToken]);
+		delete s_giftyCommission[BeingDeletedToken];
 
-		emit TokenDeleted(tokenToBeDeleted);
+		emit TokenDeleted(BeingDeletedToken);
+	}
+
+	/* --------------------Getter functions-------------------- */
+
+	function isTokenAllowed(address token) external view returns (bool) {
+		return s_tokenInfo[token].isTokenAllowed;
+	}
+
+	function getAllowedTokens() external view returns (address[] memory) {
+		return s_allowedTokens;
+	}
+
+	function getAmountOfAllowedTokens() external view returns (uint256) {
+		return s_allowedTokens.length;
+	}
+
+	function getUserInfo(address user) external view returns (UserInfo memory) {
+		return s_userInformation[user];
+	}
+
+	function getPriceFeedForToken(address token) external view returns (AggregatorV3Interface) {
+		return s_priceFeeds[token];
+	}
+
+	function getOverpaidETHAmount(address user) external view returns (uint256) {
+		return s_commissionSurplusesETH[user];
+	}
+
+	function getGiftyBalance(address token) external view returns (uint256) {
+		return s_giftyCommission[token];
+	}
+
+	function version() external pure returns (uint256) {
+		return 1;
 	}
 }
