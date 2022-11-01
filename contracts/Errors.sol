@@ -8,7 +8,7 @@ pragma solidity 0.8.17;
 error Gifty__error_0(address nonContract);
 
 /**
- * @notice It will be thrown when trying to delete a token that is not in the list of allowed tokens.
+ * @notice You trying to delete a token that is not in the list of allowed tokens.
  *
  * @param tokenNotFound - the token that was tried to be deleted
  */
@@ -44,3 +44,11 @@ error Gifty__error_4(address token);
  * @param transferredValue - how much did you actually transfer
  */
 error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
+
+/**
+ * @notice You trying to send more than the commission that Gifty earned
+ *
+ * @param amountToSend - the amount you are trying to send
+ * @param totalGiftyCommission - the current earned amount that can be withdrawn
+ */
+error Gifty__error_6(uint256 amountToSend, uint256 totalGiftyCommission);

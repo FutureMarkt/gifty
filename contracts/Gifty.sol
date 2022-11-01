@@ -75,7 +75,7 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	 * @notice The contract to which the EARNED commission from all gifts is transferred.
 	 * EARNED - commission after all burning deductions and other manipulations.
 	 */
-	address private s_piggyBox;
+	address payable private s_piggyBox;
 
 	/// @notice The main token of the platform
 	IGiftyToken private s_giftyToken;
@@ -140,18 +140,19 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
 	event PriceFeedChanged(address indexed token, address indexed priceFeed);
 
-	constructor(IGiftyToken giftyToken, address piggyBox) {
+	event TokenTransferedToPiggyBox(address indexed token, uint256 amount);
+	event ETHTransferedToPiggyBox(uint256 amount);
+
+	constructor(IGiftyToken giftyToken, address payable piggyBox) {
 		s_giftyToken = giftyToken;
 		s_piggyBox = piggyBox;
 	}
 
-	// TODO add reentrancy guard
 	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
 		_chargeCommission(amount, TypeOfCommission.ETH);
 		_createGift(receiver, amount, TypeOfGift.ETH);
 	}
 
-	// TODO add reentrancy guard
 	function giftETHWithGFTCommission(address receiver) external payable nonReentrant {}
 
 	function giftToken(
@@ -173,15 +174,48 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		emit SurplusesClaimed(msg.sender, surpluses);
 	}
 
-	function _createGift(
-		address receiver,
-		uint256 amount,
-		TypeOfGift giftType
-	) internal {
-		// uint256 receiverGiftCounter =
-		// s_userGifts[receiver] = Gift({giver: msg.sender, giftType: giftType, amount: amount});
-		emit GiftCreated(msg.sender, receiver, giftType, amount);
+	/* --------------------OnlyOwner functions-------------------- */
+
+	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
+
+	function changePiggyBox(address payable newPiggyBox) external onlyOwner {
+		s_piggyBox = newPiggyBox;
+		emit PiggyBoxChanged(newPiggyBox);
 	}
+
+	function transferToPiggyBoxTokens(address token, uint256 amount) external onlyOwner {
+		_transferToPiggyBoxTokens(token, amount);
+	}
+
+	function transferToPiggyBoxETH(uint256 amount) external onlyOwner {
+		_transferToPiggyBoxETH(amount);
+	}
+
+	function addTokens(address[] calldata tokens) external onlyOwner {
+		for (uint256 i; i < tokens.length; i++) {
+			_addToken(tokens[i]);
+		}
+	}
+
+	function deleteTokens(address[] calldata tokens) external onlyOwner {
+		for (uint256 i; i < tokens.length; i++) {
+			_deleteTokenAndTransfer(tokens[i]);
+		}
+	}
+
+	function deleteTokenEmergency(address BeingDeletedToken) external onlyOwner {
+		_deleteToken(BeingDeletedToken);
+	}
+
+	function changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
+		public
+		onlyOwner
+	{
+		s_priceFeeds[token] = aggregatorForToken;
+		emit PriceFeedChanged(token, address(aggregatorForToken));
+	}
+
+	function splitCommission() external onlyOwner {}
 
 	/* --------------------Internal functions-------------------- */
 
@@ -226,15 +260,14 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
             */
 			else if (commissionPaid > commissionShouldBePaid) {
 				unchecked {
-					s_commissionSurplusesETH[msg.sender] =
-						s_commissionSurplusesETH[msg.sender] +
-						(commissionPaid - commissionShouldBePaid);
+					s_commissionSurplusesETH[msg.sender] += (commissionPaid -
+						commissionShouldBePaid);
 				}
 			}
 
 			// We replenish the balance of the Gifty in the amount of the commission.
 			unchecked {
-				s_giftyCommission[ETH] = s_giftyCommission[ETH] + commissionShouldBePaid;
+				s_giftyCommission[ETH] += commissionShouldBePaid;
 			}
 
 			// Get price feed (ETH / USD)
@@ -271,13 +304,8 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
 
 		unchecked {
-			currentUserFinInfo.totalTurnoverInUSD =
-				currentUserFinInfo.totalTurnoverInUSD +
-				giftPriceInUSD;
-
-			currentUserFinInfo.commissionPayedInUSD =
-				currentUserFinInfo.commissionPayedInUSD +
-				commissionInUSD;
+			currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD;
+			currentUserFinInfo.commissionPayedInUSD += commissionInUSD;
 		}
 	}
 
@@ -291,6 +319,12 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	}
 
 	// TODO commission rate? Grades? Roles?
+	/**
+	 * @dev Return values of the commission rate with decimals 2
+	 *
+	 * @return uint256 - The usual commission rate
+	 * @return uint256 - Reduced commission rate when the user pays in GFT tokens.
+	 */
 	function getCommissionRate() public pure returns (uint256, uint256) {
 		return (100, 75);
 	}
@@ -303,41 +337,19 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		uint256 minimumValue = 10000;
 		if (amount < minimumValue) revert Gifty__error_2(amount, minimumValue);
 
-		// Division by 10000 since the decimals is 2
-		// TODO delete magic number
-		return (amount * commissionRate) / 10000;
+		uint256 decimals = 2;
+		return (amount * commissionRate) / (100 * 10**decimals);
 	}
 
-	/* --------------------OnlyOwner functions-------------------- */
-
-	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
-
-	function changePiggyBox(address newPiggyBox) external onlyOwner {
-		s_piggyBox = newPiggyBox;
-		emit PiggyBoxChanged(newPiggyBox);
+	function _createGift(
+		address receiver,
+		uint256 amount,
+		TypeOfGift giftType
+	) internal {
+		// uint256 receiverGiftCounter =
+		// s_userGifts[receiver] = Gift({giver: msg.sender, giftType: giftType, amount: amount});
+		emit GiftCreated(msg.sender, receiver, giftType, amount);
 	}
-
-	function addTokens(address[] calldata tokens) external onlyOwner {
-		for (uint256 i; i < tokens.length; i++) {
-			_addToken(tokens[i]);
-		}
-	}
-
-	function deleteTokens(address[] calldata tokens) external onlyOwner {
-		for (uint256 i; i < tokens.length; i++) {
-			_deleteToken(tokens[i]);
-		}
-	}
-
-	function changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
-		public
-		onlyOwner
-	{
-		s_priceFeeds[token] = aggregatorForToken;
-		emit PriceFeedChanged(token, address(aggregatorForToken));
-	}
-
-	function splitCommission() external onlyOwner {}
 
 	/* --------------------Private functions-------------------- */
 
@@ -359,12 +371,21 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		emit TokenAdded(token);
 	}
 
+	function _deleteTokenAndTransfer(address BeingDeletedToken) private {
+		// Removing the token from the system
+		_deleteToken(BeingDeletedToken);
+
+		// Transfer commission to PiggyBox
+		_transferToPiggyBoxTokens(BeingDeletedToken, s_giftyCommission[BeingDeletedToken]);
+	}
+
 	function _deleteToken(address BeingDeletedToken) private {
 		// Get the index of the token being deleted
 		TokenInfo memory tokenBeingDeletedInfo = s_tokenInfo[BeingDeletedToken];
 
-		// TODO add comments
+		// Is there a token in the system at the moment? If not revert
 		if (!tokenBeingDeletedInfo.isTokenAllowed) revert Gifty__error_1(BeingDeletedToken);
+
 		/*
 		  We take the last element in the available tokens
 		  and change its place with the token being deleted.
@@ -384,12 +405,37 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		s_allowedTokens.pop();
 		delete s_tokenInfo[BeingDeletedToken];
 
-		// TODO create transfer to piggyBox and paste here
-		// Transfer commission to PiggyBox
-		IERC20(BeingDeletedToken).safeTransfer(s_piggyBox, s_giftyCommission[BeingDeletedToken]);
-		delete s_giftyCommission[BeingDeletedToken];
-
 		emit TokenDeleted(BeingDeletedToken);
+	}
+
+	function _transferToPiggyBoxTokens(address token, uint256 amount) private {
+		uint256 giftyCommissionBalance = s_giftyCommission[token];
+		if (amount > giftyCommissionBalance) revert Gifty__error_6(amount, giftyCommissionBalance);
+
+		IERC20(token).safeTransfer(s_piggyBox, amount);
+
+		// unchecked - since the above was a check that the balance is greater than the amount being transferred
+		unchecked {
+			s_giftyCommission[token] -= amount;
+		}
+
+		emit TokenTransferedToPiggyBox(token, amount);
+	}
+
+	function _transferToPiggyBoxETH(uint256 amount) private {
+		address ETH = _getETHAddress();
+
+		uint256 giftyCommissionBalance = s_giftyCommission[ETH];
+		if (amount > giftyCommissionBalance) revert Gifty__error_6(amount, giftyCommissionBalance);
+
+		s_piggyBox.sendETH(amount);
+
+		// unchecked - since the above was a check that the balance is greater than the amount being transferred
+		unchecked {
+			s_giftyCommission[ETH] -= amount;
+		}
+
+		emit ETHTransferedToPiggyBox(amount);
 	}
 
 	/* --------------------Getter functions-------------------- */

@@ -19,7 +19,7 @@ interface IGifty {
 
 	function changeCommissionRate(uint256 newCommissionRate) external;
 
-	function changePiggyBox(address newPiggyBox) external;
+	function changePiggyBox(address payable newPiggyBox) external;
 
 	function splitCommission() external;
 
