@@ -14,14 +14,11 @@ contract GiverContractCanNotReceiverETH {
 		s_gfity = gifty;
 	}
 
-	function giftETH(uint256 amountOfGift, uint256 commission) external payable {
+	function giftETH(uint256 amountOfGift) external payable {
 		uint256 balance = address(this).balance;
+		if (balance < amountOfGift) revert GiverContractCanNotReceiverETH__balanceToLow();
 
-		uint256 giftAmountWithCommission = amountOfGift + commission;
-		if (balance < giftAmountWithCommission)
-			revert GiverContractCanNotReceiverETH__balanceToLow();
-
-		s_gfity.giftETH{value: giftAmountWithCommission}(s_owner, amountOfGift);
+		s_gfity.giftETH{value: msg.value}(s_owner, amountOfGift);
 	}
 
 	function claimSurplusesETH() external {

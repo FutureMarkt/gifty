@@ -169,6 +169,9 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 
 	function claimSurplusesETH() external {
 		uint256 surpluses = s_commissionSurplusesETH[msg.sender];
+		if (surpluses == 0) revert Gifty__error_7();
+
+		// TODO test reentrancy
 		delete s_commissionSurplusesETH[msg.sender];
 
 		payable(msg.sender).sendETH(surpluses);

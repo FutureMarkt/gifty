@@ -52,3 +52,8 @@ error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
  * @param totalGiftyCommission - the current earned amount that can be withdrawn
  */
 error Gifty__error_6(uint256 amountToSend, uint256 totalGiftyCommission);
+
+/**
+ * @notice You don't have an overpaid amount of ETH.
+ */
+error Gifty__error_7();
