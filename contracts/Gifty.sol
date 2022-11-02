@@ -149,6 +149,7 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	}
 
 	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
+		// TODO to be tested 1
 		_chargeCommission(amount, TypeOfCommission.ETH);
 		_createGift(receiver, amount, TypeOfGift.ETH);
 	}
@@ -179,15 +180,18 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
 
 	function changePiggyBox(address payable newPiggyBox) external onlyOwner {
+		// TODO to be tested
 		s_piggyBox = newPiggyBox;
 		emit PiggyBoxChanged(newPiggyBox);
 	}
 
 	function transferToPiggyBoxTokens(address token, uint256 amount) external onlyOwner {
+		// TODO to be tested
 		_transferToPiggyBoxTokens(token, amount);
 	}
 
 	function transferToPiggyBoxETH(uint256 amount) external onlyOwner {
+		// TODO to be tested
 		_transferToPiggyBoxETH(amount);
 	}
 
@@ -199,7 +203,11 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 
 	function deleteTokens(address[] calldata tokens) external onlyOwner {
 		for (uint256 i; i < tokens.length; i++) {
-			_deleteTokenAndTransfer(tokens[i]);
+			_deleteToken(tokens[i]);
+
+			// TODO write tests to transfered commission (tokens)
+			// Transfer commission to PiggyBox
+			_transferToPiggyBoxTokens(tokens[i], s_giftyCommission[tokens[i]]);
 		}
 	}
 
@@ -371,14 +379,6 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		emit TokenAdded(token);
 	}
 
-	function _deleteTokenAndTransfer(address BeingDeletedToken) private {
-		// Removing the token from the system
-		_deleteToken(BeingDeletedToken);
-
-		// Transfer commission to PiggyBox
-		_transferToPiggyBoxTokens(BeingDeletedToken, s_giftyCommission[BeingDeletedToken]);
-	}
-
 	function _deleteToken(address BeingDeletedToken) private {
 		// Get the index of the token being deleted
 		TokenInfo memory tokenBeingDeletedInfo = s_tokenInfo[BeingDeletedToken];
@@ -440,8 +440,8 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 
 	/* --------------------Getter functions-------------------- */
 
-	function isTokenAllowed(address token) external view returns (bool) {
-		return s_tokenInfo[token].isTokenAllowed;
+	function getTokenInfo(address token) external view returns (TokenInfo memory) {
+		return s_tokenInfo[token];
 	}
 
 	function getAllowedTokens() external view returns (address[] memory) {

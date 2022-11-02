@@ -25,14 +25,10 @@ describe("Delete token", function () {
 		expect(lengthBefore.sub(1)).eq(lengthAfter);
 	});
 
-	it("If you pass an incorrect token index -> an error will be reverted", async function () {
+	it("When token does not exist into allowed token - revert", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
-		// Add
-		await gifty.addTokens([sampleToken]);
-
-		// Deltete
-		expect(
+		await expect(
 			gifty.deleteTokens([sampleToken])
 		).to.be.revertedWithCustomError(gifty, "Gifty__error_1");
 	});
@@ -46,8 +42,8 @@ describe("Delete token", function () {
 		// Deltete
 		await gifty.deleteTokens([sampleToken]);
 
-		const isAllowed = await gifty.isTokenAllowed(sampleToken);
-		expect(isAllowed).false;
+		const { isTokenAllowed } = await gifty.getTokenInfo(sampleToken);
+		expect(isTokenAllowed).false;
 	});
 
 	it("After successfully deleting the token, TokenDeleted should be emmited", async function () {
@@ -77,14 +73,14 @@ describe("Delete token", function () {
 		// Delete
 		await gifty.deleteTokens(tokensExample);
 
-		const isAllowed0 = await gifty.isTokenAllowed(tokensExample[0]);
-		const isAllowed1 = await gifty.isTokenAllowed(tokensExample[1]);
-
-		expect(isAllowed0).false;
-		expect(isAllowed1).false;
+		for (let i = 0; i < tokensExample.length; i++) {
+			const { isTokenAllowed } = await gifty.getTokenInfo(
+				tokensExample[i]
+			);
+			expect(isTokenAllowed).false;
+		}
 
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
-
 		expect(amountOfAllowedTokens).eq(0);
 	});
 
@@ -114,11 +110,12 @@ describe("Delete token", function () {
 		await gifty.deleteTokens(tokensToBeDeleted);
 
 		// Is the exact tokens deleted?
-		const isAllowed0 = await gifty.isTokenAllowed(tokensToBeDeleted[0]);
-		const isAllowed1 = await gifty.isTokenAllowed(tokensToBeDeleted[1]);
-
-		expect(isAllowed0).false;
-		expect(isAllowed1).false;
+		for (let i = 0; i < tokensToBeDeleted.length; i++) {
+			const { isTokenAllowed } = await gifty.getTokenInfo(
+				tokensToBeDeleted[i]
+			);
+			expect(isTokenAllowed).false;
+		}
 
 		// Is length correct?
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
@@ -152,10 +149,9 @@ describe("Delete token", function () {
 		await gifty.deleteTokens(tokensToBeDeleted);
 
 		for (let i = 0; i < tokensToBeDeleted.length; i++) {
-			const isTokenAllowed: boolean = await gifty.isTokenAllowed(
+			const { isTokenAllowed } = await gifty.getTokenInfo(
 				tokensToBeDeleted[i]
 			);
-
 			expect(isTokenAllowed).false;
 		}
 
@@ -184,7 +180,6 @@ describe("Delete token", function () {
 		//Add array of tokens to the allowedTokens
 		await gifty.addTokens(testTokens);
 
-		// For example we delete 2 tokens from the middle of the array
 		const tokensToBeDeleted: string[] = [
 			listOfAllowedTokens[2],
 			listOfAllowedTokens[6],
@@ -197,10 +192,9 @@ describe("Delete token", function () {
 		await gifty.deleteTokens(tokensToBeDeleted);
 
 		for (let i = 0; i < tokensToBeDeleted.length; i++) {
-			const isTokenAllowed: boolean = await gifty.isTokenAllowed(
+			const { isTokenAllowed } = await gifty.getTokenInfo(
 				tokensToBeDeleted[i]
 			);
-
 			expect(isTokenAllowed).false;
 		}
 
@@ -229,7 +223,6 @@ describe("Delete token", function () {
 		//Add array of tokens to the allowedTokens
 		await gifty.addTokens(testTokens);
 
-		// For example we delete 2 tokens from the middle of the array
 		const tokensToBeDeleted: string[] = [
 			listOfAllowedTokens[2],
 			listOfAllowedTokens[6],
@@ -250,5 +243,37 @@ describe("Delete token", function () {
 
 			expect(isTokenIntoArray).false;
 		}
+	});
+
+	it("The token that was replaced by a place remained in the array", async function () {
+		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+
+		// Create testTokens
+		const testTokens: string[] = [giftyToken.address];
+
+		for (let i = 0; i < 20; i++) {
+			const testToken: MockToken = await new MockToken__factory(
+				owner
+			).deploy();
+
+			testTokens.push(testToken.address);
+		}
+
+		//Add array of tokens to the allowedTokens
+		await gifty.addTokens(testTokens);
+
+		// Delete token with index 2
+		const tokensToBeDeleted: string[] = [listOfAllowedTokens[2]];
+
+		const allowedTokensBefore: string[] = await gifty.getAllowedTokens();
+
+		// Delete
+		await gifty.deleteTokens(tokensToBeDeleted);
+
+		const allowedTokensAfter: string[] = await gifty.getAllowedTokens();
+
+		expect(allowedTokensAfter[2]).eq(
+			allowedTokensBefore[allowedTokensBefore.length - 1]
+		);
 	});
 });
