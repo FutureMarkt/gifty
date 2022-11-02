@@ -8,6 +8,7 @@ import { GiftyFixture } from "../fixtures/GiftyFixture";
 import {
 	OneEther,
 	EthAddress,
+	PercentFromEther,
 	getCommissionAmount,
 	OneEtherGiftWithCommission,
 } from "../../TestHelper";
@@ -16,7 +17,7 @@ describe("Gifty | GiftETH", function () {
 	describe("ChargeCommission | ETH", function () {
 		const giftAmount: BigNumber = OneEther;
 
-		it("A simpl function call, without checks", async function () {
+		it("A simple function call, without checks", async function () {
 			const { gifty, owner } = await loadFixture(GiftyFixture);
 
 			await gifty.giftETH(owner.address, OneEther, {
@@ -112,6 +113,20 @@ describe("Gifty | GiftETH", function () {
 			expect(expectedOverpaidAmount).eq(overpaidAmount);
 		});
 
+		it("Gifty's commission calculated and writen correctly", async function () {
+			const { gifty, receiver } = await loadFixture(GiftyFixture);
+
+			await gifty.giftETH(receiver.address, giftAmount, {
+				value: OneEtherGiftWithCommission,
+			});
+
+			const giftyEtherBalance: BigNumber = await gifty.getGiftyBalance(
+				EthAddress
+			);
+
+			expect(giftyEtherBalance).eq(PercentFromEther);
+		});
+
 		it("The total turnover of the user's funds increased in the dollar equivalent of a gift", async function () {
 			const { gifty, owner, receiver, ethMockAggregator } =
 				await loadFixture(GiftyFixture);
@@ -140,7 +155,7 @@ describe("Gifty | GiftETH", function () {
 			expect(turnoverUSD).eq(expectedTurnover);
 		});
 
-		it("The total turnover of the user's funds increased in the dollar equivalent of a gift", async function () {
+		it("The total commission payed of the user's funds increased in the dollar equivalent of a commission payed", async function () {
 			const { gifty, owner, receiver, ethMockAggregator } =
 				await loadFixture(GiftyFixture);
 
@@ -175,5 +190,12 @@ describe("Gifty | GiftETH", function () {
 
 			expect(payedCommissionInUsd).eq(expectedCommissionPayed);
 		});
+	});
+
+	it("If gift less then 10000 b.p. - revert", async function () {
+		const { gifty, receiver } = await loadFixture(GiftyFixture);
+		await expect(
+			gifty.giftETH(receiver.address, 9999, { value: 10100 })
+		).revertedWithCustomError(gifty, "Gifty__error_2");
 	});
 });
