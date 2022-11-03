@@ -5,7 +5,6 @@ import {
 	initialSupply,
 	mockAggregatorDecimals,
 	mockAggregatorAnswer,
-	ethAddress,
 } from "../../../dataHelper";
 
 import {
@@ -42,14 +41,12 @@ export async function GiftyFixture() {
 	// Deploy gifty main contract
 	const gifty: Gifty = await new Gifty__factory(owner).deploy(
 		giftyToken.address,
-		piggyBox.address
+		piggyBox.address,
+		ethMockAggregator.address
 	);
 
 	// Changing the address of the gifty in the token contract
 	await giftyToken.changeGiftyAddress(gifty.address);
-
-	// Add eth to price feed mapping
-	await gifty.changePriceFeedForToken(ethAddress, ethMockAggregator.address);
 
 	return { signers, owner, receiver, gifty, giftyToken, ethMockAggregator };
 }

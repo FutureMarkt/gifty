@@ -133,10 +133,15 @@ describe("Gifty | GiftETH", function () {
 
 			// Get ETH price and convert to 18 decimals
 			const ethPrice: BigNumber = await ethMockAggregator.latestAnswer();
-			const ethPriceWith18Decimals: BigNumber = ethers.utils.parseUnits(
-				ethPrice.toString(),
-				10
-			);
+			const decimals: number = await ethMockAggregator.decimals();
+
+			const ethPriceWith18Decimals: BigNumber =
+				decimals === 18
+					? ethPrice
+					: ethers.utils.parseUnits(
+							ethPrice.toString(),
+							18 - decimals
+					  );
 
 			await gifty.giftETH(receiver.address, giftAmount, {
 				value: OneEtherGiftWithCommission,
@@ -161,10 +166,15 @@ describe("Gifty | GiftETH", function () {
 
 			// Get ETH price and convert to 18 decimals
 			const ethPrice: BigNumber = await ethMockAggregator.latestAnswer();
-			const ethPriceWith18Decimals: BigNumber = ethers.utils.parseUnits(
-				ethPrice.toString(),
-				10
-			);
+			const decimals: number = await ethMockAggregator.decimals();
+
+			const ethPriceWith18Decimals: BigNumber =
+				decimals === 18
+					? ethPrice
+					: ethers.utils.parseUnits(
+							ethPrice.toString(),
+							18 - decimals
+					  );
 
 			// Get commission rate and calculate commission
 			const [commissionRate]: BigNumber[] =

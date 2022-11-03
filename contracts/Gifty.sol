@@ -25,8 +25,6 @@ import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 /* --------------------Error list-------------------- */
 import "./Errors.sol";
 
-// TODO add to constructor / initializer addToPriceFeed address of ETH: 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
-
 contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	using ExternalAccountsInteraction for address;
 	using ExternalAccountsInteraction for address payable;
@@ -112,6 +110,23 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	/// @notice list of all allowed tokens in the Gifty project
 	address[] private s_allowedTokens;
 
+	/// @notice minimum gift price in USD
+	uint256 private s_minGiftPriceInUsd;
+
+	/**
+	 * @dev Temporary storage of the price of the current gift.
+	 * @dev Cleared after each call.
+	 * @dev The cost of such storage is 200 gas.
+	 */
+	uint256 private s_currentCurrencyPrice;
+
+	modifier getGiftPrice(address gift) {
+		_;
+		s_currentCurrencyPrice = 0;
+	}
+
+	event MinGiftPriceChanged(uint256 newMinGiftPrice);
+
 	event GiftCreated(
 		address indexed giver,
 		address indexed receiver,
@@ -143,13 +158,19 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	event TokenTransferedToPiggyBox(address indexed token, uint256 amount);
 	event ETHTransferedToPiggyBox(uint256 amount);
 
-	constructor(IGiftyToken giftyToken, address payable piggyBox) {
+	constructor(
+		IGiftyToken giftyToken,
+		address payable piggyBox,
+		AggregatorV3Interface ethPriceFeed
+	) {
 		s_giftyToken = giftyToken;
 		s_piggyBox = piggyBox;
+		s_priceFeeds[_getETHAddress()] = ethPriceFeed;
 	}
 
 	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
 		// TODO to be tested 1
+		_validateMinimumGiftPrice(_getETHAddress(), amount);
 		_chargeCommission(amount, TypeOfCommission.ETH);
 		_createGift(receiver, amount, TypeOfGift.ETH);
 	}
@@ -179,6 +200,13 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	}
 
 	/* --------------------OnlyOwner functions-------------------- */
+
+	function changeMinGiftPrice(uint256 minGiftPrice) external onlyOwner {
+		if (minGiftPrice == 0) revert Gifty__error_8();
+
+		s_minGiftPriceInUsd = minGiftPrice;
+		emit MinGiftPriceChanged(minGiftPrice);
+	}
 
 	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
 
@@ -251,7 +279,6 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
                 total transferred - the amount of the gift.
                 The excess will be returned to the sender.
             */
-
 			uint256 commissionPaid;
 			unchecked {
 				commissionPaid = msg.value - amount;
@@ -362,11 +389,17 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		emit GiftCreated(msg.sender, receiver, giftType, amount);
 	}
 
-	/* --------------------Private functions-------------------- */
+	function _validateMinimumGiftPrice(address mainGift, uint256 amount) internal view {
+		AggregatorV3Interface priceFeed = _getPriceFeed(mainGift);
 
-	function _getETHAddress() private pure returns (address) {
-		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+		uint256 currentGiftPriceUSD = amount.getConversionRate(priceFeed);
+		uint256 minimumGiftPriceUSD = s_minGiftPriceInUsd;
+
+		if (minimumGiftPriceUSD > currentGiftPriceUSD)
+			revert Gifty__error_9(currentGiftPriceUSD, minimumGiftPriceUSD);
 	}
+
+	/* --------------------Private functions-------------------- */
 
 	function _addToken(address token) private {
 		// Checking whether the address which are trying to add is a contract?
@@ -441,7 +474,15 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		emit ETHTransferedToPiggyBox(amount);
 	}
 
+	function _getETHAddress() private pure returns (address) {
+		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+	}
+
 	/* --------------------Getter functions-------------------- */
+
+	function getMinGiftPrice() external view returns (uint256) {
+		return s_minGiftPriceInUsd;
+	}
 
 	function getTokenInfo(address token) external view returns (TokenInfo memory) {
 		return s_tokenInfo[token];
