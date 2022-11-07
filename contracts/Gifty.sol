@@ -184,8 +184,6 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		uint256 amount
 	) external {}
 
-	function addReceiverAddressToGift(address receiver, uint256 nonce) external {}
-
 	function claimGift(address from, uint256 nonce) external {}
 
 	function claimSurplusesETH() external {

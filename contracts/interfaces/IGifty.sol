@@ -15,8 +15,6 @@ interface IGifty {
 
 	function claimGift(address from, uint256 nonce) external;
 
-	function addReceiverAddressToGift(address receiver, uint256 nonce) external;
-
 	function claimSurplusesETH() external;
 
 	function changeCommissionRate(uint256 newCommissionRate) external;
