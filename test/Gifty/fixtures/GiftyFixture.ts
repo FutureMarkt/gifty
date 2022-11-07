@@ -43,8 +43,8 @@ export async function GiftyFixture() {
 		signers[0]
 	).deploy(initialSupplyReceiver, initialSupply);
 
-	const initialTokens: string[] = [ethAddress];
-	const initialAggregatorsAddress: string[] = [ethMockAggregator.address];
+	const initialTokens: string[] = [];
+	const initialAggregatorsAddress: string[] = [];
 
 	// Deploy gifty main contract
 	const gifty: Gifty = await new Gifty__factory(owner).deploy(
@@ -52,7 +52,8 @@ export async function GiftyFixture() {
 		piggyBox.address,
 		minGiftPriceInUsd,
 		initialTokens,
-		initialAggregatorsAddress
+		initialAggregatorsAddress,
+		ethMockAggregator.address
 	);
 
 	// Changing the address of the gifty in the token contract

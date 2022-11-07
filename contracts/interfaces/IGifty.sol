@@ -17,11 +17,5 @@ interface IGifty {
 
 	function claimSurplusesETH() external;
 
-	function changeCommissionRate(uint256 newCommissionRate) external;
-
-	function changePiggyBox(address payable newPiggyBox) external;
-
-	function splitCommission() external;
-
 	function version() external pure returns (uint256);
 }

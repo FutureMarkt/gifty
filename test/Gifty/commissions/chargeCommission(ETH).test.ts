@@ -210,7 +210,7 @@ describe("Gifty | GiftETH", function () {
 		 * but we need to provide for a situation if the commission is canceled
 		 * and so that the mathematics in the contract still remains.
 		 */
-		await gifty.changeMinGiftPrice(1);
+		await gifty.changeMinimalGiftPrice(1);
 
 		await expect(
 			gifty.giftETH(receiver.address, 9999, { value: 10100 })

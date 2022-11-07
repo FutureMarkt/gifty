@@ -3,7 +3,7 @@ import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 
-import { ZeroAddress } from "../../TestHelper";
+import { ZeroAddress, NonZeroAddress } from "../../TestHelper";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
 
 let sampleToken: string;
@@ -13,7 +13,9 @@ describe("Add token", function () {
 		const { signers, gifty } = await loadFixture(GiftyFixture);
 
 		await expect(
-			gifty.connect(signers[1]).addTokens([ZeroAddress])
+			gifty
+				.connect(signers[1])
+				.addTokens([ZeroAddress], [NonZeroAddress])
 		).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 
@@ -21,7 +23,7 @@ describe("Add token", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		await expect(
-			gifty.addTokens([ZeroAddress])
+			gifty.addTokens([ZeroAddress], [NonZeroAddress])
 		).to.be.revertedWithCustomError(gifty, "Gifty__error_0");
 	});
 
@@ -30,7 +32,7 @@ describe("Add token", function () {
 
 		sampleToken = giftyToken.address;
 
-		await gifty.addTokens([sampleToken]);
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 		const { isTokenAllowed } = await gifty.getTokenInfo(sampleToken);
 
 		expect(isTokenAllowed).true;
@@ -40,7 +42,7 @@ describe("Add token", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		const allowedAmountBefore = await gifty.getAmountOfAllowedTokens();
-		await gifty.addTokens([sampleToken]);
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 		const allowedAmountAfter = await gifty.getAmountOfAllowedTokens();
 
 		expect(allowedAmountBefore.add(1)).eq(allowedAmountAfter);
@@ -49,7 +51,7 @@ describe("Add token", function () {
 	it("After successfully adding the token, should be added to the array of allowed tokens", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
-		await gifty.addTokens([sampleToken]);
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 		const addedToken: string[] = await gifty.getAllowedTokens();
 
 		expect(addedToken[addedToken.length - 1]).eq(sampleToken);
@@ -58,7 +60,7 @@ describe("Add token", function () {
 	it("After successfully adding the token, TokenAdded should be emmited", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
-		await expect(gifty.addTokens([sampleToken]))
+		await expect(gifty.addTokens([sampleToken], [NonZeroAddress]))
 			.emit(gifty, "TokenAdded")
 			.withArgs(sampleToken);
 	});
@@ -75,7 +77,12 @@ describe("Add token", function () {
 			newMockToken.address,
 		];
 
-		await gifty.addTokens(tokensExample);
+		// Create new arr with tokensExample.length length and fill every element with NonZeroAddress
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		for (let i = 0; i < tokensExample.length; i++) {
 			const { isTokenAllowed } = await gifty.getTokenInfo(
@@ -103,7 +110,11 @@ describe("Add token", function () {
 			tokensExample.push(newMockToken.address);
 		}
 
-		await gifty.addTokens(tokensExample);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		for (let i = 0; i < tokensExample.length; i++) {
 			const { isTokenAllowed } = await gifty.getTokenInfo(
@@ -130,7 +141,11 @@ describe("Add token", function () {
 			tokensExample.push(newMockToken.address);
 		}
 
-		await gifty.addTokens(tokensExample);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		for (let i = 0; i < exampleTokenAmount; i++) {
 			const allowedTokens: string[] = await gifty.getAllowedTokens();
