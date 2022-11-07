@@ -61,3 +61,6 @@ error Gifty__error_8();
 
 /// @notice The price of your gift is less than the minimum allowable gift price.
 error Gifty__error_9(uint256 giftPriceUSD, uint256 minimumGiftPriceUSD);
+
+/// @notice The lengths of the priceFeeds and tokensForPriceFeeds arrays must match.
+error Gifty__error_10(uint256 tokensForPriceFeedsLength, uint256 priceFeedsLength);

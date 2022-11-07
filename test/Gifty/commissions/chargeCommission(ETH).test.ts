@@ -204,6 +204,14 @@ describe("Gifty | GiftETH", function () {
 
 	it("If gift less then 10000 b.p. - revert", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
+
+		/**
+		 * In contact, there is a limit on the minimum amount of the gift (it can be either $10 or $15),
+		 * but we need to provide for a situation if the commission is canceled
+		 * and so that the mathematics in the contract still remains.
+		 */
+		await gifty.changeMinGiftPrice(1);
+
 		await expect(
 			gifty.giftETH(receiver.address, 9999, { value: 10100 })
 		).revertedWithCustomError(gifty, "Gifty__error_2");

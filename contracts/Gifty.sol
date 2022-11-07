@@ -161,11 +161,17 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 	constructor(
 		IGiftyToken giftyToken,
 		address payable piggyBox,
-		AggregatorV3Interface ethPriceFeed
+		uint256 minGiftPriceInUsd,
+		address[] memory tokenForPriceFeeds,
+		AggregatorV3Interface[] memory priceFeeds
 	) {
+		// The address must not be null
+		if (address(giftyToken) == address(0)) revert Gifty__error_8();
 		s_giftyToken = giftyToken;
-		s_piggyBox = piggyBox;
-		s_priceFeeds[_getETHAddress()] = ethPriceFeed;
+
+		changeMinGiftPrice(minGiftPriceInUsd);
+		changePiggyBox(piggyBox);
+		changePriceFeedsForTokens(tokenForPriceFeeds, priceFeeds);
 	}
 
 	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
@@ -199,20 +205,22 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 
 	/* --------------------OnlyOwner functions-------------------- */
 
-	function changeMinGiftPrice(uint256 minGiftPrice) external onlyOwner {
+	function changeMinGiftPrice(uint256 minGiftPrice) public onlyOwner {
 		if (minGiftPrice == 0) revert Gifty__error_8();
 
 		s_minGiftPriceInUsd = minGiftPrice;
 		emit MinGiftPriceChanged(minGiftPrice);
 	}
 
-	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
-
-	function changePiggyBox(address payable newPiggyBox) external onlyOwner {
+	function changePiggyBox(address payable newPiggyBox) public onlyOwner {
 		// TODO to be tested
+		if (newPiggyBox == address(0)) revert Gifty__error_8();
+
 		s_piggyBox = newPiggyBox;
 		emit PiggyBoxChanged(newPiggyBox);
 	}
+
+	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
 
 	function transferToPiggyBoxTokens(address token, uint256 amount) external onlyOwner {
 		// TODO to be tested
@@ -244,12 +252,17 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		_deleteToken(BeingDeletedToken);
 	}
 
-	function changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
-		public
-		onlyOwner
-	{
-		s_priceFeeds[token] = aggregatorForToken;
-		emit PriceFeedChanged(token, address(aggregatorForToken));
+	function changePriceFeedsForTokens(
+		address[] memory tokens,
+		AggregatorV3Interface[] memory aggregatorsForTokens
+	) public onlyOwner {
+		// The lengths of the arrays must match since each token must be assigned a price feed
+		if (tokens.length != aggregatorsForTokens.length)
+			revert Gifty__error_10(tokens.length, aggregatorsForTokens.length);
+
+		for (uint256 i; i < tokens.length; i++) {
+			_changePriceFeedForToken(tokens[i], aggregatorsForTokens[i]);
+		}
 	}
 
 	function splitCommission() external onlyOwner {}
@@ -470,6 +483,16 @@ contract Gifty is IGifty, Ownable, ReentrancyGuard {
 		}
 
 		emit ETHTransferedToPiggyBox(amount);
+	}
+
+	function _changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
+		private
+	{
+		if (token == address(0) || address(aggregatorForToken) == address(0))
+			revert Gifty__error_8();
+
+		s_priceFeeds[token] = aggregatorForToken;
+		emit PriceFeedChanged(token, address(aggregatorForToken));
 	}
 
 	function _getETHAddress() private pure returns (address) {
