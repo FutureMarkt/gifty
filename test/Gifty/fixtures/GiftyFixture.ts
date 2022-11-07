@@ -3,10 +3,14 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
 	initialSupplyReceiver,
 	initialSupply,
-	mockAggregatorDecimals,
-	mockAggregatorAnswer,
+	minGiftPriceInUsd,
 	ethAddress,
 } from "../../../dataHelper";
+
+import {
+	mockAggregatorDecimals,
+	mockAggregatorAnswer,
+} from ".././../TestHelper";
 
 import {
 	Gifty,
@@ -39,17 +43,21 @@ export async function GiftyFixture() {
 		signers[0]
 	).deploy(initialSupplyReceiver, initialSupply);
 
+	const initialTokens: string[] = [];
+	const initialAggregatorsAddress: string[] = [];
+
 	// Deploy gifty main contract
 	const gifty: Gifty = await new Gifty__factory(owner).deploy(
 		giftyToken.address,
-		piggyBox.address
+		piggyBox.address,
+		minGiftPriceInUsd,
+		initialTokens,
+		initialAggregatorsAddress,
+		ethMockAggregator.address
 	);
 
 	// Changing the address of the gifty in the token contract
 	await giftyToken.changeGiftyAddress(gifty.address);
-
-	// Add eth to price feed mapping
-	await gifty.changePriceFeedForToken(ethAddress, ethMockAggregator.address);
 
 	return { signers, owner, receiver, gifty, giftyToken, ethMockAggregator };
 }

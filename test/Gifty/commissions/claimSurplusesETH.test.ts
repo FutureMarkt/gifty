@@ -18,9 +18,9 @@ import { anyUint } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
 
 const giftAmount = OneEther;
 
-describe("Gifty | claimSurplusesETH.test", function () {
+describe("Gifty | claimSurplusesETH", function () {
 	it("claimSurplusesETH revert if overpaid amount eq 0", async function () {
-		const { gifty, owner, receiver } = await loadFixture(GiftyFixture);
+		const { gifty } = await loadFixture(GiftyFixture);
 
 		await expect(gifty.claimSurplusesETH()).to.be.revertedWithCustomError(
 			gifty,
@@ -32,7 +32,6 @@ describe("Gifty | claimSurplusesETH.test", function () {
 		const { gifty, owner, receiver } = await loadFixture(GiftyFixture);
 		const giftWithBigCommission: BigNumber =
 			OneEtherGiftWithCommission.add(PercentFromEther);
-
 		await gifty.giftETH(receiver.address, giftAmount, {
 			value: giftWithBigCommission,
 		});

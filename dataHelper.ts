@@ -10,10 +10,5 @@ export const initialSupplyReceiver: Promise<string> = ethers
 		return signers[0].address;
 	});
 
-export const mockAggregatorDecimals: number = 8;
-export const mockAggregatorAnswer: BigNumber = ethers.utils.parseUnits(
-	"1500",
-	8
-);
-
+export const minGiftPriceInUsd: BigNumber = ethers.utils.parseEther("15");
 export const ethAddress: string = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";

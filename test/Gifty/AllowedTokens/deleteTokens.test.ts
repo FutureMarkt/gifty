@@ -5,6 +5,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 
 import { MockToken, MockToken__factory } from "../../../typechain-types";
+import { NonZeroAddress } from "../../TestHelper";
 
 let sampleToken: string, listOfAllowedTokens: string[];
 
@@ -15,7 +16,7 @@ describe("Delete token", function () {
 		sampleToken = giftyToken.address;
 
 		// Add
-		await gifty.addTokens([sampleToken]);
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		// Deltete
@@ -37,7 +38,7 @@ describe("Delete token", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		// Add
-		await gifty.addTokens([sampleToken]);
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 
 		// Deltete
 		await gifty.deleteTokens([sampleToken]);
@@ -48,7 +49,7 @@ describe("Delete token", function () {
 
 	it("After successfully deleting the token, TokenDeleted should be emmited", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
-		await gifty.addTokens([sampleToken]);
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 
 		await expect(gifty.deleteTokens([sampleToken]))
 			.emit(gifty, "TokenDeleted")
@@ -67,8 +68,11 @@ describe("Delete token", function () {
 			newMockToken.address,
 		];
 
-		//Add
-		await gifty.addTokens(tokensExample);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		// Delete
 		await gifty.deleteTokens(tokensExample);
@@ -88,18 +92,21 @@ describe("Delete token", function () {
 		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const testTokens: string[] = [giftyToken.address];
+		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < 4; i++) {
 			const testToken: MockToken = await new MockToken__factory(
 				owner
 			).deploy();
 
-			testTokens.push(testToken.address);
+			tokensExample.push(testToken.address);
 		}
 
-		//Add array of tokens to the allowedTokens
-		await gifty.addTokens(testTokens);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		const listOfAllowedTokens: string[] = await gifty.getAllowedTokens();
 
@@ -127,18 +134,21 @@ describe("Delete token", function () {
 		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const testTokens: string[] = [giftyToken.address];
+		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
 				owner
 			).deploy();
 
-			testTokens.push(testToken.address);
+			tokensExample.push(testToken.address);
 		}
 
-		//Add array of tokens to the allowedTokens
-		await gifty.addTokens(testTokens);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		listOfAllowedTokens = await gifty.getAllowedTokens();
 
@@ -159,7 +169,7 @@ describe("Delete token", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			testTokens.length - tokensToBeDeleted.length
+			tokensExample.length - tokensToBeDeleted.length
 		);
 	});
 
@@ -167,18 +177,21 @@ describe("Delete token", function () {
 		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const testTokens: string[] = [giftyToken.address];
+		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
 				owner
 			).deploy();
 
-			testTokens.push(testToken.address);
+			tokensExample.push(testToken.address);
 		}
 
-		//Add array of tokens to the allowedTokens
-		await gifty.addTokens(testTokens);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		const tokensToBeDeleted: string[] = [
 			listOfAllowedTokens[2],
@@ -202,7 +215,7 @@ describe("Delete token", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			testTokens.length - tokensToBeDeleted.length
+			tokensExample.length - tokensToBeDeleted.length
 		);
 	});
 
@@ -210,18 +223,21 @@ describe("Delete token", function () {
 		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const testTokens: string[] = [giftyToken.address];
+		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
 				owner
 			).deploy();
 
-			testTokens.push(testToken.address);
+			tokensExample.push(testToken.address);
 		}
 
-		//Add array of tokens to the allowedTokens
-		await gifty.addTokens(testTokens);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		const tokensToBeDeleted: string[] = [
 			listOfAllowedTokens[2],
@@ -249,18 +265,21 @@ describe("Delete token", function () {
 		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const testTokens: string[] = [giftyToken.address];
+		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
 				owner
 			).deploy();
 
-			testTokens.push(testToken.address);
+			tokensExample.push(testToken.address);
 		}
 
-		//Add array of tokens to the allowedTokens
-		await gifty.addTokens(testTokens);
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		// Delete token with index 2
 		const tokensToBeDeleted: string[] = [listOfAllowedTokens[2]];

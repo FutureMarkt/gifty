@@ -133,10 +133,15 @@ describe("Gifty | GiftETH", function () {
 
 			// Get ETH price and convert to 18 decimals
 			const ethPrice: BigNumber = await ethMockAggregator.latestAnswer();
-			const ethPriceWith18Decimals: BigNumber = ethers.utils.parseUnits(
-				ethPrice.toString(),
-				10
-			);
+			const decimals: number = await ethMockAggregator.decimals();
+
+			const ethPriceWith18Decimals: BigNumber =
+				decimals === 18
+					? ethPrice
+					: ethers.utils.parseUnits(
+							ethPrice.toString(),
+							18 - decimals
+					  );
 
 			await gifty.giftETH(receiver.address, giftAmount, {
 				value: OneEtherGiftWithCommission,
@@ -161,10 +166,15 @@ describe("Gifty | GiftETH", function () {
 
 			// Get ETH price and convert to 18 decimals
 			const ethPrice: BigNumber = await ethMockAggregator.latestAnswer();
-			const ethPriceWith18Decimals: BigNumber = ethers.utils.parseUnits(
-				ethPrice.toString(),
-				10
-			);
+			const decimals: number = await ethMockAggregator.decimals();
+
+			const ethPriceWith18Decimals: BigNumber =
+				decimals === 18
+					? ethPrice
+					: ethers.utils.parseUnits(
+							ethPrice.toString(),
+							18 - decimals
+					  );
 
 			// Get commission rate and calculate commission
 			const [commissionRate]: BigNumber[] =
@@ -194,6 +204,14 @@ describe("Gifty | GiftETH", function () {
 
 	it("If gift less then 10000 b.p. - revert", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
+
+		/**
+		 * In contact, there is a limit on the minimum amount of the gift (it can be either $10 or $15),
+		 * but we need to provide for a situation if the commission is canceled
+		 * and so that the mathematics in the contract still remains.
+		 */
+		await gifty.changeMinimalGiftPrice(1);
+
 		await expect(
 			gifty.giftETH(receiver.address, 9999, { value: 10100 })
 		).revertedWithCustomError(gifty, "Gifty__error_2");

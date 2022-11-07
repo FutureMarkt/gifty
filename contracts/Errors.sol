@@ -53,7 +53,14 @@ error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
  */
 error Gifty__error_6(uint256 amountToSend, uint256 totalGiftyCommission);
 
-/**
- * @notice You don't have an overpaid amount of ETH.
- */
+/// @notice You don't have an overpaid amount of ETH.
 error Gifty__error_7();
+
+/// @notice One of the passed parameters is zero.
+error Gifty__error_8();
+
+/// @notice The price of your gift is less than the minimum allowable gift price.
+error Gifty__error_9(uint256 giftPriceUSD, uint256 minimumGiftPriceUSD);
+
+/// @notice The lengths of the priceFeeds and tokensForPriceFeeds arrays must match.
+error Gifty__error_10(uint256 tokensForPriceFeedsLength, uint256 priceFeedsLength);
