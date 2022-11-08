@@ -56,20 +56,12 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		address receiver;
 		uint256 amount;
 		IERC20 giftToken; // 20 bytes ----------------|
+		uint80 giftedAtBlock; // 10 bytes ------------|
 		TypeOfGift giftType; // 1 byte (uint8) -------|
-		uint32 giftedAtBlock; // 4 bytes -------------|
-		uint32 freeRefundThresholdBlock; // 4 bytes --|
 		bool isClaimed; // 1 byte --------------------|
 	}
 
-	struct GiftRefundSettings {
-		uint120 refundGiftWithCommissionThreshold; // 15 bytes -|
-		uint120 freeRefundGiftThreshold; // 15 bytes -----------|
-		uint16 giftRefundCommission; // 2 bytes ----------------|
-	}
-
-	Gift[] private s_allGifts;
-	GiftRefundSettings internal s_giftRefundSettings;
+	Gift[] internal s_allGifts;
 
 	/** @notice All related address information */
 	mapping(address => UserInfo) internal s_userInformation;
@@ -80,7 +72,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	event GiftCreated(
 		address indexed giver,
 		address indexed receiver,
-		TypeOfGift indexed giftType,
+		address indexed giftedToken,
 		uint256 amount
 	);
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
@@ -102,21 +94,29 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			minGiftPriceInUsd,
 			tokenForPriceFeeds,
 			priceFeeds,
-			priceFeedForETH
+			priceFeedForETH,
+			refundGiftWithCommissionThreshold,
+			freeRefundGiftThreshold,
+			giftRefundCommission
 		)
-	{
-		s_giftRefundSettings = GiftRefundSettings(
-			refundGiftWithCommissionThreshold.toUint120(),
-			freeRefundGiftThreshold.toUint120(),
-			giftRefundCommission.toUint16()
-		);
+	{}
+
+	modifier validateReceiver(address receiver) {
+		if (receiver == msg.sender) revert Gifty__error_11();
+		_;
 	}
 
-	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
+	function giftETH(address receiver, uint256 amount)
+		external
+		payable
+		nonReentrant
+		validateReceiver(receiver)
+	{
 		// TODO to be tested 1
+
 		_validateMinimumGiftPrice(_getETHAddress(), amount);
 		_chargeCommission(amount, TypeOfCommission.ETH);
-		_createGift(receiver, amount, TypeOfGift.ETH);
+		_createGift(receiver, amount, IERC20(_getETHAddress()), TypeOfGift.ETH);
 	}
 
 	function giftETHWithGFTCommission(address receiver) external payable nonReentrant {}
@@ -265,11 +265,26 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	function _createGift(
 		address receiver,
 		uint256 amount,
-		TypeOfGift giftType
+		IERC20 currentTokenToGift,
+		TypeOfGift currentGiftType
 	) internal {
-		// uint256 receiverGiftCounter =
-		// s_userGifts[receiver] = Gift({giver: msg.sender, giftType: giftType, amount: amount});
-		emit GiftCreated(msg.sender, receiver, giftType, amount);
+		Gift memory newGift = Gift({
+			giver: msg.sender,
+			receiver: receiver,
+			amount: amount,
+			giftToken: currentTokenToGift,
+			giftType: currentGiftType,
+			giftedAtBlock: (block.number).toUint80(),
+			isClaimed: false
+		});
+
+		uint256 newGiftIndex = s_allGifts.length;
+		s_allGifts.push(newGift);
+
+		s_userInformation[msg.sender].givenGifts.push(newGiftIndex);
+		s_userInformation[receiver].receivedGifts.push(newGiftIndex);
+
+		emit GiftCreated(msg.sender, receiver, address(currentTokenToGift), amount);
 	}
 
 	function _validateMinimumGiftPrice(address mainGift, uint256 amount) internal view {
@@ -284,7 +299,19 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 	/* --------------------Getter functions-------------------- */
 
-	function getGiftRefundSettings() external view returns (GiftRefundSettings memory) {
+	function getGiftsAmount() external view returns (uint256) {
+		return s_allGifts.length;
+	}
+
+	function getAllGifts() external view returns (Gift[] memory) {
+		return s_allGifts;
+	}
+
+	function getExactGift(uint256 giftId) external view returns (Gift memory) {
+		return s_allGifts[giftId];
+	}
+
+	function getRefundSettings() external view returns (GiftRefundSettings memory) {
 		return s_giftRefundSettings;
 	}
 

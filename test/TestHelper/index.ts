@@ -13,6 +13,11 @@ export const EthAddress: string = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 export const mockAggregatorDecimals: number = 8;
 export const mockAggregatorAnswer: BigNumber = ethers.utils.parseUnits("1500",8);
 
+// block time == 2 sec (Matic)
+export const giftRefundWithCommissionThresholdInBlocks = 43200; // 1 day
+export const giftRefundWithoutCommissionThresholdInBlocks= 1296000; // 1 month
+export const refundGiftCommission = 10; // %
+
 // Functions
 export const getCommissionAmount = (giftAmount: BigNumber,commissionRate: BigNumber) => giftAmount.mul(commissionRate).div(10000);
 export async function getConvertedPrice(aggregator: MockV3Aggregator) {

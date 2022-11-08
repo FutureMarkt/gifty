@@ -64,3 +64,6 @@ error Gifty__error_9(uint256 giftPriceUSD, uint256 minimumGiftPriceUSD);
 
 /// @notice The lengths of the priceFeeds and tokensForPriceFeeds arrays must match.
 error Gifty__error_10(uint256 tokensForPriceFeedsLength, uint256 priceFeedsLength);
+
+/// @notice Giver is receiver (selfgift).
+error Gifty__error_11();

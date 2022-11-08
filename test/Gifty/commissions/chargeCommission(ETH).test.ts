@@ -1,5 +1,4 @@
 import { expect } from "chai";
-import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
@@ -11,6 +10,7 @@ import {
 	PercentFromEther,
 	getCommissionAmount,
 	OneEtherGiftWithCommission,
+	getConvertedPrice,
 } from "../../TestHelper";
 
 describe("Gifty | GiftETH", function () {
@@ -131,17 +131,9 @@ describe("Gifty | GiftETH", function () {
 			const { gifty, owner, receiver, ethMockAggregator } =
 				await loadFixture(GiftyFixture);
 
-			// Get ETH price and convert to 18 decimals
-			const ethPrice: BigNumber = await ethMockAggregator.latestAnswer();
-			const decimals: number = await ethMockAggregator.decimals();
-
-			const ethPriceWith18Decimals: BigNumber =
-				decimals === 18
-					? ethPrice
-					: ethers.utils.parseUnits(
-							ethPrice.toString(),
-							18 - decimals
-					  );
+			const ethPriceWith18Decimals: BigNumber = await getConvertedPrice(
+				ethMockAggregator
+			);
 
 			await gifty.giftETH(receiver.address, giftAmount, {
 				value: OneEtherGiftWithCommission,
@@ -164,17 +156,9 @@ describe("Gifty | GiftETH", function () {
 			const { gifty, owner, receiver, ethMockAggregator } =
 				await loadFixture(GiftyFixture);
 
-			// Get ETH price and convert to 18 decimals
-			const ethPrice: BigNumber = await ethMockAggregator.latestAnswer();
-			const decimals: number = await ethMockAggregator.decimals();
-
-			const ethPriceWith18Decimals: BigNumber =
-				decimals === 18
-					? ethPrice
-					: ethers.utils.parseUnits(
-							ethPrice.toString(),
-							18 - decimals
-					  );
+			const ethPriceWith18Decimals: BigNumber = await getConvertedPrice(
+				ethMockAggregator
+			);
 
 			// Get commission rate and calculate commission
 			const [commissionRate]: BigNumber[] =

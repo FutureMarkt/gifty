@@ -10,6 +10,9 @@ import {
 import {
 	mockAggregatorDecimals,
 	mockAggregatorAnswer,
+	giftRefundWithCommissionThresholdInBlocks,
+	giftRefundWithoutCommissionThresholdInBlocks,
+	refundGiftCommission,
 } from ".././../TestHelper";
 
 import {
@@ -53,7 +56,10 @@ export async function GiftyFixture() {
 		minGiftPriceInUsd,
 		initialTokens,
 		initialAggregatorsAddress,
-		ethMockAggregator.address
+		ethMockAggregator.address,
+		giftRefundWithCommissionThresholdInBlocks,
+		giftRefundWithoutCommissionThresholdInBlocks,
+		refundGiftCommission
 	);
 
 	// Changing the address of the gifty in the token contract
