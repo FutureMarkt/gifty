@@ -27,8 +27,8 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice Information about each token
-	 * indexInTheArray - position in s_allowedTokens
-	 * isTokenAllowed - is token in system
+	 * @notice indexInTheArray - position in s_allowedTokens
+	 * @notice isTokenAllowed - is token in system
 	 */
 	struct TokenInfo {
 		uint248 indexInTheArray; //--|
@@ -40,7 +40,7 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice The contract to which the EARNED* commission from all gifts is transferred.
-	 * EARNED - commission after all burning deductions and other manipulations.
+	 * @notice EARNED - commission after all burning deductions and other manipulations.
 	 */
 	address payable private s_piggyBox;
 
@@ -52,7 +52,7 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice Mapping of allowed tokens - will return the "true" if the token is in the Gifty project.
-	 * address - address of potential token
+	 * @notice address - address of potential token
 	 */
 	mapping(address => TokenInfo) internal s_tokenInfo;
 
@@ -64,8 +64,8 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice We save the amount of each token the contract received as a commission.
-	 * key - token address
-	 * value - received commission
+	 * @notice key - token address
+	 * @notice value - received commission
 	 */
 	mapping(address => uint256) internal s_giftyCommission;
 
@@ -115,7 +115,7 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice It is used to compare the lengths of two arrays,
-	 * if they are not equal it gives an error.
+	 * @notice if they are not equal it gives an error.
 	 *
 	 * @param a - length of first array
 	 * @param b - length of second array

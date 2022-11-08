@@ -18,55 +18,64 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for uint256;
 	using SafeERC20 for IERC20;
+	using SafeCast for uint256;
 
 	enum TypeOfCommission {
+		DEFAULT, // 0
 		ETH,
-		GFT_TOKEN,
+		GFT,
 		TOKEN
 	}
 
 	/**
-	 * @notice
-	 * ETH - Native cryptocurrency of blockchain
-	 * FUNGIBLE_TOKEN - Fungigle tokens, backward compatible with ERC-20
-	 * NFT - Non-fungible token
+	 * @notice ETH - Native cryptocurrency of blockchain
+	 * @notice FT - Fungigle tokens, backward compatible with ERC-20
+	 * @notice NFT - Non-fungible token
 	 */
 	enum TypeOfGift {
+		DEFAULT, // 0
 		ETH,
-		FUNGIBLE_TOKEN,
+		FT,
 		NFT
 	}
 
-	// TODO Without wallet?
-	struct Gift {
-		address giver;
-		TypeOfGift giftType;
-		uint256 amount;
-	}
-
 	struct FinancialInfo {
-		uint256 totalTurnoverInUSD;
-		uint256 commissionPayedInUSD;
+		uint128 totalTurnoverInUSD; // ----|
+		uint128 commissionPayedInUSD; //---|
 	}
 
 	// TODO: thats all?
 	struct UserInfo {
-		uint128 giftCounter;
-		uint128 receivedGiftCounter;
-		Gift[] notAcceptedGifts;
+		uint256[] receivedGifts;
+		uint256[] givenGifts;
 		FinancialInfo finInfo;
 	}
 
-	// TODO: Is the gift contained in receiver mapping or gifter?
-	mapping(address => mapping(uint256 => Gift)) internal s_userGifts;
+	struct Gift {
+		address giver;
+		address receiver;
+		uint256 amount;
+		IERC20 giftToken; // 20 bytes ----------------|
+		TypeOfGift giftType; // 1 byte (uint8) -------|
+		uint32 giftedAtBlock; // 4 bytes -------------|
+		uint32 freeRefundThresholdBlock; // 4 bytes --|
+		bool isClaimed; // 1 byte --------------------|
+	}
 
-	/// @notice All related address information
+	struct GiftRefundSettings {
+		uint120 refundGiftWithCommissionThreshold; // 15 bytes -|
+		uint120 freeRefundGiftThreshold; // 15 bytes -----------|
+		uint16 giftRefundCommission; // 2 bytes ----------------|
+	}
+
+	Gift[] private s_allGifts;
+	GiftRefundSettings internal s_giftRefundSettings;
+
+	/** @notice All related address information */
 	mapping(address => UserInfo) internal s_userInformation;
 
-	/// @notice The amount that the user overpaid when giving ETH
+	/** @notice The amount that the user overpaid when giving ETH */
 	mapping(address => uint256) private s_commissionSurplusesETH;
-
-	event MinGiftPriceChanged(uint256 newMinGiftPrice);
 
 	event GiftCreated(
 		address indexed giver,
@@ -74,7 +83,6 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		TypeOfGift indexed giftType,
 		uint256 amount
 	);
-
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
 
 	constructor(
@@ -83,7 +91,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 minGiftPriceInUsd,
 		address[] memory tokenForPriceFeeds,
 		AggregatorV3Interface[] memory priceFeeds,
-		AggregatorV3Interface priceFeedForETH
+		AggregatorV3Interface priceFeedForETH,
+		uint256 refundGiftWithCommissionThreshold,
+		uint256 freeRefundGiftThreshold,
+		uint256 giftRefundCommission
 	)
 		GiftyController(
 			giftyToken,
@@ -93,7 +104,13 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			priceFeeds,
 			priceFeedForETH
 		)
-	{}
+	{
+		s_giftRefundSettings = GiftRefundSettings(
+			refundGiftWithCommissionThreshold.toUint120(),
+			freeRefundGiftThreshold.toUint120(),
+			giftRefundCommission.toUint16()
+		);
+	}
 
 	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
 		// TODO to be tested 1
@@ -107,7 +124,12 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	function giftToken(
 		address receiver,
 		address tokenToGift,
-		address tokenToPayCommission,
+		uint256 amount
+	) external {}
+
+	function giftTokenWithGFTCommission(
+		address receiver,
+		address tokenToGift,
 		uint256 amount
 	) external {}
 
@@ -133,7 +155,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 		) = getCommissionRate();
 
-		if (commissionType == TypeOfCommission.GFT_TOKEN) {
+		if (commissionType == TypeOfCommission.GFT) {
 			// TODO commission GFT TOKEN: 25% free
 		} else if (commissionType == TypeOfCommission.TOKEN) {
 			// TODO commission token - 100% paid from token
@@ -204,10 +226,8 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		// Updating the user's financial information
 		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
 
-		unchecked {
-			currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD;
-			currentUserFinInfo.commissionPayedInUSD += commissionInUSD;
-		}
+		currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD.toUint128();
+		currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
 	}
 
 	function _calculateGiftPriceAndCommissionInUSD(
@@ -263,6 +283,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	}
 
 	/* --------------------Getter functions-------------------- */
+
+	function getGiftRefundSettings() external view returns (GiftRefundSettings memory) {
+		return s_giftRefundSettings;
+	}
 
 	function getOverpaidETHAmount(address user) external view returns (uint256) {
 		return s_commissionSurplusesETH[user];

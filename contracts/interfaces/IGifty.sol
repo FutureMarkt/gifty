@@ -9,7 +9,12 @@ interface IGifty {
 	function giftToken(
 		address receiver,
 		address tokenToGift,
-		address tokenToPayCommission,
+		uint256 amount
+	) external;
+
+	function giftTokenWithGFTCommission(
+		address receiver,
+		address tokenToGift,
 		uint256 amount
 	) external;
 
