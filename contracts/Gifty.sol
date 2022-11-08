@@ -56,9 +56,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		address receiver;
 		uint256 amount;
 		IERC20 giftToken; // 20 bytes ----------------|
-		uint80 giftedAtBlock; // 10 bytes ------------|
+		uint72 giftedAtBlock; // 9 bytes -------------|
 		TypeOfGift giftType; // 1 byte (uint8) -------|
 		bool isClaimed; // 1 byte --------------------|
+		bool isRefunded; // 1 byte -------------------|
 	}
 
 	Gift[] internal s_allGifts;
@@ -75,6 +76,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		address indexed giftedToken,
 		uint256 amount
 	);
+	event GiftClaimed(uint256 giftId);
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
 
 	modifier validateReceiver(address receiver) {
@@ -120,7 +122,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	{
 		// TODO to be tested first
 		_chargeCommission(amount, TypeOfCommission.ETH);
-		_createGift(receiver, amount, IERC20(_getETHAddress()), TypeOfGift.ETH);
+		_createGift(receiver, amount, IERC20(address(0)), TypeOfGift.ETH);
 	}
 
 	function giftETHWithGFTCommission(address receiver)
@@ -143,7 +145,23 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 amount
 	) external validateReceiver(receiver) validateGiftPrice(tokenToGift, amount) {}
 
-	function claimGift(address from, uint256 nonce) external nonReentrant {}
+	function claimGift(uint256 giftId) external nonReentrant {
+		Gift memory currentGift = s_allGifts[giftId];
+
+		// Condition validation
+		if (currentGift.receiver != msg.sender) revert Gifty__error_12();
+		else if (currentGift.isClaimed) revert Gifty__error_13();
+		else if (currentGift.isRefunded) revert Gifty__error_14();
+
+		if (currentGift.giftType == TypeOfGift.FT) {} else if (
+			currentGift.giftType == TypeOfGift.ETH
+		) {
+			payable(currentGift.receiver).sendETH(currentGift.amount);
+		}
+
+		s_allGifts[giftId].isClaimed = true;
+		emit GiftClaimed(giftId);
+	}
 
 	function claimSurplusesETH() external {
 		uint256 surpluses = s_commissionSurplusesETH[msg.sender];
@@ -294,8 +312,9 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			amount: amount,
 			giftToken: currentTokenToGift,
 			giftType: currentGiftType,
-			giftedAtBlock: (block.number).toUint80(),
-			isClaimed: false
+			giftedAtBlock: (block.number).toUint72(),
+			isClaimed: false,
+			isRefunded: false
 		});
 
 		uint256 newGiftIndex = s_allGifts.length;

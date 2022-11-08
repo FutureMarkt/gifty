@@ -18,7 +18,7 @@ interface IGifty {
 		uint256 amount
 	) external;
 
-	function claimGift(address from, uint256 nonce) external;
+	function claimGift(uint256 giftId) external;
 
 	function claimSurplusesETH() external;
 

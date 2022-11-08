@@ -67,3 +67,12 @@ error Gifty__error_10(uint256 tokensForPriceFeedsLength, uint256 priceFeedsLengt
 
 /// @notice Giver is receiver (selfgift).
 error Gifty__error_11();
+
+/// @notice You're trying to take someone else's gift!
+error Gifty__error_12();
+
+/// @notice You are trying to collect a gift that has already been collected!
+error Gifty__error_13();
+
+/// @notice The sender canceled the sending of your gift.
+error Gifty__error_14();

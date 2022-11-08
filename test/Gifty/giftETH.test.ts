@@ -6,7 +6,7 @@ import { GiftyFixture } from "./fixtures/GiftyFixture";
 import {
 	OneEther,
 	OneEtherGiftWithCommission,
-	EthAddress,
+	ZeroAddress,
 } from "../TestHelper";
 import { BigNumber } from "ethers";
 
@@ -86,7 +86,7 @@ describe("Gifty | giftETH", function () {
 		});
 
 		const { giftToken } = await gifty.getExactGift(0);
-		expect(giftToken).eq(EthAddress);
+		expect(giftToken).eq(ZeroAddress);
 	});
 
 	it("Gift type assigned correctly | should be ETH (1)", async function () {
@@ -125,6 +125,18 @@ describe("Gifty | giftETH", function () {
 		expect(isClaimed).false;
 	});
 
+	it("Gift refunded status should be false", async function () {
+		const { gifty, receiver } = await loadFixture(GiftyFixture);
+
+		await gifty.giftETH(receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		const { isRefunded } = await gifty.getExactGift(0);
+
+		expect(isRefunded).false;
+	});
+
 	it("Giver should has a giftId in userInfo.givenGifts", async function () {
 		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
 
@@ -160,7 +172,12 @@ describe("Gifty | giftETH", function () {
 			})
 		)
 			.to.emit(gifty, "GiftCreated")
-			.withArgs(owner.address, receiver.address, EthAddress, giftAmount);
+			.withArgs(
+				owner.address,
+				receiver.address,
+				ZeroAddress,
+				giftAmount
+			);
 	});
 
 	it("The next gift will receive the corresponding index", async function () {
@@ -203,7 +220,7 @@ describe("Gifty | giftETH", function () {
 			receiver.address,
 			owner.address,
 			giftAmount,
-			EthAddress,
+			ZeroAddress,
 			currentBlock,
 			1,
 			false,
