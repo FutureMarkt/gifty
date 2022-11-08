@@ -9,11 +9,16 @@ interface IGifty {
 	function giftToken(
 		address receiver,
 		address tokenToGift,
-		address tokenToPayCommission,
 		uint256 amount
 	) external;
 
-	function claimGift(address from, uint256 nonce) external;
+	function giftTokenWithGFTCommission(
+		address receiver,
+		address tokenToGift,
+		uint256 amount
+	) external;
+
+	function claimGift(uint256 giftId) external;
 
 	function claimSurplusesETH() external;
 

@@ -18,64 +18,76 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for uint256;
 	using SafeERC20 for IERC20;
+	using SafeCast for uint256;
 
 	enum TypeOfCommission {
+		DEFAULT, // 0
 		ETH,
-		GFT_TOKEN,
+		GFT,
 		TOKEN
 	}
 
 	/**
-	 * @notice
-	 * ETH - Native cryptocurrency of blockchain
-	 * FUNGIBLE_TOKEN - Fungigle tokens, backward compatible with ERC-20
-	 * NFT - Non-fungible token
+	 * @notice ETH - Native cryptocurrency of blockchain
+	 * @notice FT - Fungigle tokens, backward compatible with ERC-20
+	 * @notice NFT - Non-fungible token
 	 */
 	enum TypeOfGift {
+		DEFAULT, // 0
 		ETH,
-		FUNGIBLE_TOKEN,
+		FT,
 		NFT
 	}
 
-	// TODO Without wallet?
-	struct Gift {
-		address giver;
-		TypeOfGift giftType;
-		uint256 amount;
-	}
-
 	struct FinancialInfo {
-		uint256 totalTurnoverInUSD;
-		uint256 commissionPayedInUSD;
+		uint128 totalTurnoverInUSD; // ----|
+		uint128 commissionPayedInUSD; //---|
 	}
 
 	// TODO: thats all?
 	struct UserInfo {
-		uint128 giftCounter;
-		uint128 receivedGiftCounter;
-		Gift[] notAcceptedGifts;
+		uint256[] givenGifts;
+		uint256[] receivedGifts;
 		FinancialInfo finInfo;
 	}
 
-	// TODO: Is the gift contained in receiver mapping or gifter?
-	mapping(address => mapping(uint256 => Gift)) internal s_userGifts;
+	struct Gift {
+		address giver;
+		address receiver;
+		uint256 amount;
+		IERC20 giftToken; // 20 bytes ----------------|
+		uint72 giftedAtBlock; // 9 bytes -------------|
+		TypeOfGift giftType; // 1 byte (uint8) -------|
+		bool isClaimed; // 1 byte --------------------|
+		bool isRefunded; // 1 byte -------------------|
+	}
 
-	/// @notice All related address information
+	Gift[] internal s_allGifts;
+
+	/** @notice All related address information */
 	mapping(address => UserInfo) internal s_userInformation;
 
-	/// @notice The amount that the user overpaid when giving ETH
+	/** @notice The amount that the user overpaid when giving ETH */
 	mapping(address => uint256) private s_commissionSurplusesETH;
-
-	event MinGiftPriceChanged(uint256 newMinGiftPrice);
 
 	event GiftCreated(
 		address indexed giver,
 		address indexed receiver,
-		TypeOfGift indexed giftType,
+		address indexed giftedToken,
 		uint256 amount
 	);
-
+	event GiftClaimed(uint256 giftId);
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
+
+	modifier validateReceiver(address receiver) {
+		if (receiver == msg.sender) revert Gifty__error_11();
+		_;
+	}
+
+	modifier validateGiftPrice(address gift, uint256 amount) {
+		_validateMinimumGiftPrice(gift, amount);
+		_;
+	}
 
 	constructor(
 		IGiftyToken giftyToken,
@@ -83,7 +95,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 minGiftPriceInUsd,
 		address[] memory tokenForPriceFeeds,
 		AggregatorV3Interface[] memory priceFeeds,
-		AggregatorV3Interface priceFeedForETH
+		AggregatorV3Interface priceFeedForETH,
+		uint256 refundGiftWithCommissionThreshold,
+		uint256 freeRefundGiftThreshold,
+		uint256 giftRefundCommission
 	)
 		GiftyController(
 			giftyToken,
@@ -91,27 +106,62 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			minGiftPriceInUsd,
 			tokenForPriceFeeds,
 			priceFeeds,
-			priceFeedForETH
+			priceFeedForETH,
+			refundGiftWithCommissionThreshold,
+			freeRefundGiftThreshold,
+			giftRefundCommission
 		)
 	{}
 
-	function giftETH(address receiver, uint256 amount) external payable nonReentrant {
-		// TODO to be tested 1
-		_validateMinimumGiftPrice(_getETHAddress(), amount);
+	function giftETH(address receiver, uint256 amount)
+		external
+		payable
+		nonReentrant
+		validateReceiver(receiver)
+		validateGiftPrice(_getETHAddress(), amount)
+	{
+		// TODO to be tested first
 		_chargeCommission(amount, TypeOfCommission.ETH);
-		_createGift(receiver, amount, TypeOfGift.ETH);
+		_createGift(receiver, amount, IERC20(address(0)), TypeOfGift.ETH);
 	}
 
-	function giftETHWithGFTCommission(address receiver) external payable nonReentrant {}
+	function giftETHWithGFTCommission(address receiver)
+		external
+		payable
+		nonReentrant
+		validateReceiver(receiver)
+		validateGiftPrice(_getETHAddress(), msg.value)
+	{}
 
 	function giftToken(
 		address receiver,
 		address tokenToGift,
-		address tokenToPayCommission,
 		uint256 amount
-	) external {}
+	) external validateReceiver(receiver) validateGiftPrice(tokenToGift, amount) {}
 
-	function claimGift(address from, uint256 nonce) external {}
+	function giftTokenWithGFTCommission(
+		address receiver,
+		address tokenToGift,
+		uint256 amount
+	) external validateReceiver(receiver) validateGiftPrice(tokenToGift, amount) {}
+
+	function claimGift(uint256 giftId) external nonReentrant {
+		Gift memory currentGift = s_allGifts[giftId];
+
+		// Condition validation
+		if (currentGift.receiver != msg.sender) revert Gifty__error_12();
+		else if (currentGift.isClaimed) revert Gifty__error_13();
+		else if (currentGift.isRefunded) revert Gifty__error_14();
+
+		if (currentGift.giftType == TypeOfGift.FT) {} else if (
+			currentGift.giftType == TypeOfGift.ETH
+		) {
+			payable(currentGift.receiver).sendETH(currentGift.amount);
+		}
+
+		s_allGifts[giftId].isClaimed = true;
+		emit GiftClaimed(giftId);
+	}
 
 	function claimSurplusesETH() external {
 		uint256 surpluses = s_commissionSurplusesETH[msg.sender];
@@ -126,6 +176,16 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 	/* --------------------Internal functions-------------------- */
 
+	function _validateMinimumGiftPrice(address mainGift, uint256 amount) internal view {
+		AggregatorV3Interface priceFeed = _getPriceFeed(mainGift);
+
+		uint256 currentGiftPriceUSD = amount.getConversionRate(priceFeed);
+		uint256 minimumGiftPriceUSD = s_minGiftPriceInUsd;
+
+		if (minimumGiftPriceUSD > currentGiftPriceUSD)
+			revert Gifty__error_9(currentGiftPriceUSD, minimumGiftPriceUSD);
+	}
+
 	function _chargeCommission(uint256 amount, TypeOfCommission commissionType) internal {
 		// Get a commission interest rate for the gift.
 		(
@@ -133,7 +193,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 		) = getCommissionRate();
 
-		if (commissionType == TypeOfCommission.GFT_TOKEN) {
+		if (commissionType == TypeOfCommission.GFT) {
 			// TODO commission GFT TOKEN: 25% free
 		} else if (commissionType == TypeOfCommission.TOKEN) {
 			// TODO commission token - 100% paid from token
@@ -186,30 +246,6 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		}
 	}
 
-	function _updateTheUserFinInfo(
-		uint256 amount,
-		uint256 commissionRate,
-		AggregatorV3Interface priceFeed
-	) internal {
-		/*
-            Calculate the equivalent of the gift amount and commission in USD,
-            for accounting in the personal account and issuing statuses.
-        */
-		(uint256 giftPriceInUSD, uint256 commissionInUSD) = _calculateGiftPriceAndCommissionInUSD(
-			amount,
-			commissionRate,
-			priceFeed
-		);
-
-		// Updating the user's financial information
-		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
-
-		unchecked {
-			currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD;
-			currentUserFinInfo.commissionPayedInUSD += commissionInUSD;
-		}
-	}
-
 	function _calculateGiftPriceAndCommissionInUSD(
 		uint256 amount,
 		uint256 commissionRate,
@@ -242,27 +278,71 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		return (amount * commissionRate) / (100 * 10**decimals);
 	}
 
+	function _updateTheUserFinInfo(
+		uint256 amount,
+		uint256 commissionRate,
+		AggregatorV3Interface priceFeed
+	) internal {
+		/*
+            Calculate the equivalent of the gift amount and commission in USD,
+            for accounting in the personal account and issuing statuses.
+        */
+		(uint256 giftPriceInUSD, uint256 commissionInUSD) = _calculateGiftPriceAndCommissionInUSD(
+			amount,
+			commissionRate,
+			priceFeed
+		);
+
+		// Updating the user's financial information
+		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
+
+		currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD.toUint128();
+		currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
+	}
+
 	function _createGift(
 		address receiver,
 		uint256 amount,
-		TypeOfGift giftType
+		IERC20 currentTokenToGift,
+		TypeOfGift currentGiftType
 	) internal {
-		// uint256 receiverGiftCounter =
-		// s_userGifts[receiver] = Gift({giver: msg.sender, giftType: giftType, amount: amount});
-		emit GiftCreated(msg.sender, receiver, giftType, amount);
-	}
+		Gift memory newGift = Gift({
+			giver: msg.sender,
+			receiver: receiver,
+			amount: amount,
+			giftToken: currentTokenToGift,
+			giftType: currentGiftType,
+			giftedAtBlock: (block.number).toUint72(),
+			isClaimed: false,
+			isRefunded: false
+		});
 
-	function _validateMinimumGiftPrice(address mainGift, uint256 amount) internal view {
-		AggregatorV3Interface priceFeed = _getPriceFeed(mainGift);
+		uint256 newGiftIndex = s_allGifts.length;
+		s_allGifts.push(newGift);
 
-		uint256 currentGiftPriceUSD = amount.getConversionRate(priceFeed);
-		uint256 minimumGiftPriceUSD = s_minGiftPriceInUsd;
+		s_userInformation[msg.sender].givenGifts.push(newGiftIndex);
+		s_userInformation[receiver].receivedGifts.push(newGiftIndex);
 
-		if (minimumGiftPriceUSD > currentGiftPriceUSD)
-			revert Gifty__error_9(currentGiftPriceUSD, minimumGiftPriceUSD);
+		emit GiftCreated(msg.sender, receiver, address(currentTokenToGift), amount);
 	}
 
 	/* --------------------Getter functions-------------------- */
+
+	function getGiftsAmount() external view returns (uint256) {
+		return s_allGifts.length;
+	}
+
+	function getAllGifts() external view returns (Gift[] memory) {
+		return s_allGifts;
+	}
+
+	function getExactGift(uint256 giftId) external view returns (Gift memory) {
+		return s_allGifts[giftId];
+	}
+
+	function getRefundSettings() external view returns (GiftRefundSettings memory) {
+		return s_giftRefundSettings;
+	}
 
 	function getOverpaidETHAmount(address user) external view returns (uint256) {
 		return s_commissionSurplusesETH[user];

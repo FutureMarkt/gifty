@@ -27,20 +27,29 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice Information about each token
-	 * indexInTheArray - position in s_allowedTokens
-	 * isTokenAllowed - is token in system
+	 * @notice indexInTheArray - position in s_allowedTokens
+	 * @notice isTokenAllowed - is token in system
 	 */
 	struct TokenInfo {
 		uint248 indexInTheArray; //--|
 		bool isTokenAllowed; //    --|
 	}
 
+	// TODO add comments
+	struct GiftRefundSettings {
+		uint120 refundGiftWithCommissionThreshold; // 15 bytes -|
+		uint120 freeRefundGiftThreshold; // 15 bytes -----------|
+		uint16 giftRefundCommission; // 2 bytes ----------------|
+	}
+
+	GiftRefundSettings internal s_giftRefundSettings;
+
 	/** @notice The main token of the platform */
 	IGiftyToken internal s_giftyToken;
 
 	/**
 	 * @notice The contract to which the EARNED* commission from all gifts is transferred.
-	 * EARNED - commission after all burning deductions and other manipulations.
+	 * @notice EARNED - commission after all burning deductions and other manipulations.
 	 */
 	address payable private s_piggyBox;
 
@@ -52,7 +61,7 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice Mapping of allowed tokens - will return the "true" if the token is in the Gifty project.
-	 * address - address of potential token
+	 * @notice address - address of potential token
 	 */
 	mapping(address => TokenInfo) internal s_tokenInfo;
 
@@ -64,8 +73,8 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/**
 	 * @notice We save the amount of each token the contract received as a commission.
-	 * key - token address
-	 * value - received commission
+	 * @notice key - token address
+	 * @notice value - received commission
 	 */
 	mapping(address => uint256) internal s_giftyCommission;
 
@@ -114,8 +123,21 @@ contract GiftyController is IGiftyController, Ownable {
 	event ETHTransferedToPiggyBox(uint256 amount);
 
 	/**
+	 * @notice Emitted when changing the gift return settings.
+	 *
+	 * @param newRefundGiftWithCommissionThreshold - the changed value of the number of blocks before the gift can be returned with a commission.
+	 * @param newFreeRefundGiftThreshold - the changed value of the number of blocks after which it becomes possible to return the gift without commission.
+	 * @param newGiftRefundCommission - the changed commission that will be charged in case of a refund.
+	 */
+	event RefundSettingsChanged(
+		uint256 newRefundGiftWithCommissionThreshold,
+		uint256 newFreeRefundGiftThreshold,
+		uint256 newGiftRefundCommission
+	);
+
+	/**
 	 * @notice It is used to compare the lengths of two arrays,
-	 * if they are not equal it gives an error.
+	 * @notice if they are not equal it gives an error.
 	 *
 	 * @param a - length of first array
 	 * @param b - length of second array
@@ -143,16 +165,48 @@ contract GiftyController is IGiftyController, Ownable {
 		uint256 minGiftPriceInUsd,
 		address[] memory tokensToBeAdded,
 		AggregatorV3Interface[] memory priceFeeds,
-		AggregatorV3Interface priceFeedForETH
+		AggregatorV3Interface priceFeedForETH,
+		uint256 refundGiftWithCommissionThreshold,
+		uint256 freeRefundGiftThreshold,
+		uint256 giftRefundCommission
 	) {
 		// The address must not be zero address
 		if (address(giftyToken) == address(0)) revert Gifty__error_8();
 		s_giftyToken = giftyToken;
 
+		changeRefundSettings(
+			refundGiftWithCommissionThreshold,
+			freeRefundGiftThreshold,
+			giftRefundCommission
+		);
 		changeMinimalGiftPrice(minGiftPriceInUsd);
 		changePiggyBox(piggyBox);
 		addTokens(tokensToBeAdded, priceFeeds);
 		_changePriceFeedForToken(_getETHAddress(), priceFeedForETH);
+	}
+
+	function changeRefundSettings(
+		uint256 refundGiftWithCommissionThreshold,
+		uint256 freeRefundGiftThreshold,
+		uint256 giftRefundCommission
+	) public onlyOwner {
+		if (
+			refundGiftWithCommissionThreshold == 0 ||
+			freeRefundGiftThreshold == 0 ||
+			giftRefundCommission == 0
+		) revert Gifty__error_8();
+
+		s_giftRefundSettings = GiftRefundSettings(
+			refundGiftWithCommissionThreshold.toUint120(),
+			freeRefundGiftThreshold.toUint120(),
+			giftRefundCommission.toUint16()
+		);
+
+		emit RefundSettingsChanged(
+			refundGiftWithCommissionThreshold,
+			freeRefundGiftThreshold,
+			giftRefundCommission
+		);
 	}
 
 	/**
