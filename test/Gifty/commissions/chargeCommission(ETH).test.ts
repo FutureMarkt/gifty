@@ -18,9 +18,9 @@ describe("Gifty | GiftETH", function () {
 		const giftAmount: BigNumber = OneEther;
 
 		it("A simple function call, without checks", async function () {
-			const { gifty, owner } = await loadFixture(GiftyFixture);
+			const { gifty, receiver } = await loadFixture(GiftyFixture);
 
-			await gifty.giftETH(owner.address, OneEther, {
+			await gifty.giftETH(receiver.address, OneEther, {
 				value: OneEtherGiftWithCommission,
 			});
 		});

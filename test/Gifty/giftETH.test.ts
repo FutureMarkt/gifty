@@ -10,7 +10,7 @@ import {
 } from "../TestHelper";
 import { BigNumber } from "ethers";
 
-describe.only("Gifty | giftETH", function () {
+describe("Gifty | giftETH", function () {
 	const giftAmount: BigNumber = OneEther;
 
 	it("Giver assigned correctly | owner", async function () {
@@ -161,5 +161,56 @@ describe.only("Gifty | giftETH", function () {
 		)
 			.to.emit(gifty, "GiftCreated")
 			.withArgs(owner.address, receiver.address, EthAddress, giftAmount);
+	});
+
+	it("The next gift will receive the corresponding index", async function () {
+		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
+
+		// First gift
+		await gifty.giftETH(receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		const giftIdBefore: BigNumber = (await gifty.getGiftsAmount()).sub(1);
+		// Second gift
+		await gifty.connect(receiver).giftETH(owner.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		const giftId: BigNumber = (await gifty.getGiftsAmount()).sub(1);
+
+		expect(giftId).eq(giftIdBefore.add(1));
+	});
+
+	it("All information about next gift will saved correctly", async function () {
+		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
+
+		// First gift
+		await gifty.giftETH(receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		// Second gift
+		await gifty.connect(receiver).giftETH(owner.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+		const currentBlock = await ethers.provider.getBlockNumber();
+
+		const giftId: BigNumber = (await gifty.getGiftsAmount()).sub(1);
+		const latestGift: any[] = await gifty.getExactGift(giftId);
+
+		const expectedResult = [
+			receiver.address,
+			owner.address,
+			giftAmount,
+			EthAddress,
+			currentBlock,
+			1,
+			false,
+		];
+
+		for (let i = 0; i < expectedResult.length; i++) {
+			expect(latestGift[i]).eq(expectedResult[i]);
+		}
 	});
 });
