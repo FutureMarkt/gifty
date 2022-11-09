@@ -9,7 +9,6 @@ error Gifty__error_0(address nonContract);
 
 /**
  * @notice You trying to delete a token that is not in the list of allowed tokens.
- *
  * @param tokenNotFound - the token that was tried to be deleted
  */
 error Gifty__error_1(address tokenNotFound);
@@ -53,26 +52,33 @@ error Gifty__error_5(uint256 giftAmount, uint256 transferredValue);
  */
 error Gifty__error_6(uint256 amountToSend, uint256 totalGiftyCommission);
 
-/// @notice You don't have an overpaid amount of ETH.
+/** @notice You don't have an overpaid amount of ETH. */
 error Gifty__error_7();
 
-/// @notice One of the passed parameters is zero.
+/** @notice One of the passed parameters is zero. */
 error Gifty__error_8();
 
-/// @notice The price of your gift is less than the minimum allowable gift price.
+/** @notice The price of your gift is less than the minimum allowable gift price. */
 error Gifty__error_9(uint256 giftPriceUSD, uint256 minimumGiftPriceUSD);
 
-/// @notice The lengths of the priceFeeds and tokensForPriceFeeds arrays must match.
+/** @notice The lengths of the priceFeeds and tokensForPriceFeeds arrays must match. */
 error Gifty__error_10(uint256 tokensForPriceFeedsLength, uint256 priceFeedsLength);
 
-/// @notice Giver is receiver (selfgift).
+/** @notice Giver is receiver (selfgift). */
 error Gifty__error_11();
 
-/// @notice You're trying to take someone else's gift!
+/** @notice You're trying to take someone else's gift! */
 error Gifty__error_12();
 
-/// @notice You are trying to collect a gift that has already been collected!
+/** @notice You are trying to collect a gift that has already been collected! */
 error Gifty__error_13();
 
-/// @notice The sender canceled the sending of your gift.
+/** @notice The sender canceled the sending of your gift. */
 error Gifty__error_14();
+
+/**
+ * @notice At the moment there is no way to return the gift.
+ * @notice If the recipient does not pick it up by the time of the free return of the gift,
+ * @notice you will be able to pick it up for free.
+ */
+error Gifty__error_15();

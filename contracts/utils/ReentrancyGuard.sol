@@ -14,8 +14,8 @@ error ReentrancyGuard__reentrantCall();
  * @notice For more details, see the OpenZeppelin documentation.
  */
 abstract contract ReentrancyGuard {
-	uint256 private constant _NOT_ENTERED = 1;
-	uint256 private constant _ENTERED = 2;
+	uint256 private _NOT_ENTERED = 1;
+	uint256 private _ENTERED = 2;
 
 	uint256 private _status;
 

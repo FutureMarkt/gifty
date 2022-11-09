@@ -78,6 +78,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	);
 	event GiftClaimed(uint256 giftId);
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
+	event GiftRefunded(uint256 giftId);
 
 	modifier validateReceiver(address receiver) {
 		if (receiver == msg.sender) revert Gifty__error_11();
@@ -149,18 +150,57 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		Gift memory currentGift = s_allGifts[giftId];
 
 		// Condition validation
-		if (currentGift.receiver != msg.sender) revert Gifty__error_12();
-		else if (currentGift.isClaimed) revert Gifty__error_13();
-		else if (currentGift.isRefunded) revert Gifty__error_14();
+		_validateGiftUnpacking(
+			currentGift.receiver,
+			currentGift.isClaimed,
+			currentGift.isRefunded
+		);
 
-		if (currentGift.giftType == TypeOfGift.FT) {} else if (
-			currentGift.giftType == TypeOfGift.ETH
-		) {
-			payable(currentGift.receiver).sendETH(currentGift.amount);
-		}
+		_sendGift(currentGift.giftType, currentGift.giftToken, currentGift.amount);
 
 		s_allGifts[giftId].isClaimed = true;
 		emit GiftClaimed(giftId);
+	}
+
+	function refundGift(uint256 giftId) external nonReentrant {
+		Gift memory currentGift = s_allGifts[giftId];
+
+		_validateGiftUnpacking(currentGift.giver, currentGift.isClaimed, currentGift.isRefunded);
+
+		GiftRefundSettings memory refundSettings = s_giftRefundSettings;
+		uint256 blockDifference = block.number - currentGift.giftedAtBlock;
+
+		uint256 refundAmount;
+
+		// Fewer blocks have passed than the threshold value
+		if (blockDifference < refundSettings.refundGiftWithCommissionThreshold) {
+			uint256 commissionAmount = _calculateCommission(
+				currentGift.amount,
+				refundSettings.giftRefundCommission
+			);
+
+			refundAmount = currentGift.amount - commissionAmount;
+
+			s_giftyCommission[
+				address(currentGift.giftToken) == address(0)
+					? _getETHAddress()
+					: address(currentGift.giftToken)
+			] += commissionAmount;
+		}
+		// More blocks have passed than the free withdrawal threshold
+		else if (blockDifference > refundSettings.freeRefundGiftThreshold) {
+			refundAmount = currentGift.amount;
+		}
+		// else revert (refundGiftWithCommissionThreshold < diff < freeRefundGiftThreshold)
+		else revert Gifty__error_15();
+
+		_sendGift(currentGift.giftType, currentGift.giftToken, refundAmount);
+
+		// TODO re-write FinancialInfo оборот уменьшить - комиссию прибавить
+		// TODO add function to param, the function which will be calculate values in function updFinInfo
+
+		s_allGifts[giftId].isRefunded = true;
+		emit GiftRefunded(giftId);
 	}
 
 	function claimSurplusesETH() external {
@@ -184,6 +224,16 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 		if (minimumGiftPriceUSD > currentGiftPriceUSD)
 			revert Gifty__error_9(currentGiftPriceUSD, minimumGiftPriceUSD);
+	}
+
+	function _validateGiftUnpacking(
+		address unpacker,
+		bool isClaimed,
+		bool isRefunded
+	) internal view {
+		if (unpacker != msg.sender) revert Gifty__error_12();
+		else if (isClaimed) revert Gifty__error_13();
+		else if (isRefunded) revert Gifty__error_14();
 	}
 
 	function _chargeCommission(uint256 amount, TypeOfCommission commissionType) internal {
@@ -324,6 +374,20 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		s_userInformation[receiver].receivedGifts.push(newGiftIndex);
 
 		emit GiftCreated(msg.sender, receiver, address(currentTokenToGift), amount);
+	}
+
+	function _sendGift(
+		TypeOfGift giftType,
+		IERC20 token,
+		uint256 amount
+	) internal {
+		if (giftType == TypeOfGift.FT) {
+			token.safeTransfer(msg.sender, amount);
+		} else if (giftType == TypeOfGift.ETH) {
+			payable(msg.sender).sendETH(amount);
+		} else {
+			//! NFT or revert
+		}
 	}
 
 	/* --------------------Getter functions-------------------- */

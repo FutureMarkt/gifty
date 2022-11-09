@@ -13,6 +13,16 @@ import { BigNumber } from "ethers";
 describe("Gifty | giftETH", function () {
 	const giftAmount: BigNumber = OneEther;
 
+	it("Giver equal to receiver should be reverted", async function () {
+		const { gifty, owner } = await loadFixture(GiftyFixture);
+
+		await expect(
+			gifty.giftETH(owner.address, giftAmount, {
+				value: OneEtherGiftWithCommission,
+			})
+		).to.be.revertedWithCustomError(gifty, "Gifty__error_11");
+	});
+
 	it("Giver assigned correctly | owner", async function () {
 		const { gifty, owner, receiver } = await loadFixture(GiftyFixture);
 
@@ -78,7 +88,7 @@ describe("Gifty | giftETH", function () {
 		expect(amount).eq(giftAmount);
 	});
 
-	it("Gift token assigned correctly | should be ETH address", async function () {
+	it("Gift token assigned correctly | should be zero address", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await gifty.giftETH(receiver.address, giftAmount, {
@@ -89,7 +99,7 @@ describe("Gifty | giftETH", function () {
 		expect(giftToken).eq(ZeroAddress);
 	});
 
-	it("Gift type assigned correctly | should be ETH (1)", async function () {
+	it("Gift type assigned correctly | should be zero address", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await gifty.giftETH(receiver.address, giftAmount, {
@@ -197,6 +207,24 @@ describe("Gifty | giftETH", function () {
 		const giftId: BigNumber = (await gifty.getGiftsAmount()).sub(1);
 
 		expect(giftId).eq(giftIdBefore.add(1));
+	});
+
+	it("Several gift contained in the all gift array after next gift", async function () {
+		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
+
+		// First gift
+		await gifty.giftETH(receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		// Second gift
+		await gifty.connect(receiver).giftETH(owner.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		const gifts: any[] = await gifty.getAllGifts();
+
+		expect(gifts.length).eq(2);
 	});
 
 	it("All information about next gift will saved correctly", async function () {

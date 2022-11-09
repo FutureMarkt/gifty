@@ -12,3 +12,8 @@ export const initialSupplyReceiver: Promise<string> = ethers
 
 export const minGiftPriceInUsd: BigNumber = ethers.utils.parseEther("15");
 export const ethAddress: string = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+// block time == 2 sec (Matic)
+export const giftRefundWithCommissionThresholdInBlocks = 43200; // 1 day
+export const giftRefundWithoutCommissionThresholdInBlocks = 1296000; // 1 month
+export const refundGiftCommission = 10; // %
