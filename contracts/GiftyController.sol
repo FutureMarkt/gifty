@@ -177,6 +177,7 @@ contract GiftyController is IGiftyController, Ownable {
 		changeRefundSettings(
 			refundGiftWithCommissionThreshold,
 			freeRefundGiftThreshold,
+			// SHOULD BE WITH 2 DECIMALS
 			giftRefundCommission
 		);
 		changeMinimalGiftPrice(minGiftPriceInUsd);
@@ -253,6 +254,7 @@ contract GiftyController is IGiftyController, Ownable {
 		}
 	}
 
+	// TODO
 	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
 
 	function transferToPiggyBoxTokens(address token, uint256 amount) external onlyOwner {
@@ -282,6 +284,7 @@ contract GiftyController is IGiftyController, Ownable {
 		}
 	}
 
+	// TODO
 	function splitCommission() external onlyOwner {}
 
 	/* --------------------Internal functions-------------------- */
@@ -300,7 +303,10 @@ contract GiftyController is IGiftyController, Ownable {
 
 		// Push token to the array of allowed tokens and set token information
 		s_allowedTokens.push(token);
-		s_tokenInfo[token] = TokenInfo({isTokenAllowed: true, indexInTheArray: uint248(newIndex)});
+		s_tokenInfo[token] = TokenInfo({
+			isTokenAllowed: true,
+			indexInTheArray: newIndex.toUint248()
+		});
 
 		emit TokenAdded(token);
 	}
