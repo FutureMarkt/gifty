@@ -7,6 +7,8 @@ import {
 	OneEther,
 	OneEtherGiftWithCommission,
 	ZeroAddress,
+	getConvertedPrice,
+	EthAddress,
 } from "../TestHelper";
 import { BigNumber } from "ethers";
 
@@ -88,18 +90,18 @@ describe("Gifty | giftETH", function () {
 		expect(amount).eq(giftAmount);
 	});
 
-	it("Gift token assigned correctly | should be zero address", async function () {
+	it("Gift token assigned correctly | should be 0xE address", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await gifty.giftETH(receiver.address, giftAmount, {
 			value: OneEtherGiftWithCommission,
 		});
 
-		const { giftToken } = await gifty.getExactGift(0);
-		expect(giftToken).eq(ZeroAddress);
+		const { asset } = await gifty.getExactGift(0);
+		expect(asset).eq(EthAddress);
 	});
 
-	it("Gift type assigned correctly | should be zero address", async function () {
+	it("Gift type assigned correctly | should be ETH", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await gifty.giftETH(receiver.address, giftAmount, {
@@ -107,7 +109,7 @@ describe("Gifty | giftETH", function () {
 		});
 
 		const { giftType } = await gifty.getExactGift(0);
-		expect(giftType).eq(1);
+		expect(giftType).eq(1); // ETH
 	});
 
 	it("Time of gift should be assigned correctly", async function () {
@@ -182,12 +184,7 @@ describe("Gifty | giftETH", function () {
 			})
 		)
 			.to.emit(gifty, "GiftCreated")
-			.withArgs(
-				owner.address,
-				receiver.address,
-				ZeroAddress,
-				giftAmount
-			);
+			.withArgs(owner.address, receiver.address, EthAddress, giftAmount);
 	});
 
 	it("The next gift will receive the corresponding index", async function () {
@@ -228,7 +225,8 @@ describe("Gifty | giftETH", function () {
 	});
 
 	it("All information about next gift will saved correctly", async function () {
-		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
+		const { gifty, receiver, owner, ethMockAggregator } =
+			await loadFixture(GiftyFixture);
 
 		// First gift
 		await gifty.giftETH(receiver.address, giftAmount, {
@@ -243,14 +241,16 @@ describe("Gifty | giftETH", function () {
 
 		const giftId: BigNumber = (await gifty.getGiftsAmount()).sub(1);
 		const latestGift: any[] = await gifty.getExactGift(giftId);
+		const ethPrice = await getConvertedPrice(ethMockAggregator);
 
 		const expectedResult = [
 			receiver.address,
 			owner.address,
+			ethPrice,
 			giftAmount,
-			ZeroAddress,
+			EthAddress,
+			1, // Gift type - ETH
 			currentBlock,
-			1,
 			false,
 		];
 

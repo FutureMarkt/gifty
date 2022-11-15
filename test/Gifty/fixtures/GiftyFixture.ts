@@ -4,7 +4,6 @@ import {
 	initialSupplyReceiver,
 	initialSupply,
 	minGiftPriceInUsd,
-	ethAddress,
 } from "../../../dataHelper";
 
 import {
@@ -24,6 +23,8 @@ import {
 	GiftyToken__factory,
 	MockV3Aggregator,
 	MockV3Aggregator__factory,
+	Attacker,
+	Attacker__factory,
 } from "../../../typechain-types";
 
 export async function GiftyFixture() {
@@ -54,16 +55,26 @@ export async function GiftyFixture() {
 		giftyToken.address,
 		piggyBox.address,
 		minGiftPriceInUsd,
-		initialTokens,
-		initialAggregatorsAddress,
-		ethMockAggregator.address,
 		giftRefundWithCommissionThresholdInBlocks,
 		giftRefundWithoutCommissionThresholdInBlocks,
-		refundGiftCommission
+		refundGiftCommission,
+		initialTokens,
+		initialAggregatorsAddress,
+		ethMockAggregator.address
 	);
 
 	// Changing the address of the gifty in the token contract
 	await giftyToken.changeGiftyAddress(gifty.address);
 
-	return { signers, owner, receiver, gifty, giftyToken, ethMockAggregator };
+	const attacker: Attacker = await new Attacker__factory(owner).deploy();
+
+	return {
+		signers,
+		owner,
+		receiver,
+		gifty,
+		giftyToken,
+		ethMockAggregator,
+		attacker,
+	};
 }

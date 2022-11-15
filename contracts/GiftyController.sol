@@ -217,7 +217,6 @@ contract GiftyController is IGiftyController, Ownable {
 	 * @param minGiftPrice - new minimal gift price.
 	 */
 	function changeMinimalGiftPrice(uint256 minGiftPrice) public onlyOwner {
-		// TODO to be tested
 		if (minGiftPrice == 0) revert Gifty__error_8();
 
 		s_minGiftPriceInUsd = minGiftPrice.toUint96();
@@ -225,7 +224,6 @@ contract GiftyController is IGiftyController, Ownable {
 	}
 
 	function changePiggyBox(address payable newPiggyBox) public onlyOwner {
-		// TODO to be tested
 		if (newPiggyBox == address(0)) revert Gifty__error_8();
 
 		s_piggyBox = newPiggyBox;
@@ -288,9 +286,9 @@ contract GiftyController is IGiftyController, Ownable {
 	function splitCommission() external onlyOwner {}
 
 	/* --------------------Internal functions-------------------- */
-	function _getPriceFeed(address token) internal view returns (AggregatorV3Interface priceFeed) {
-		priceFeed = s_priceFeeds[token];
-		if (address(priceFeed) == address(0)) revert Gifty__error_4(token);
+	function _getPriceFeed(address asset) internal view returns (AggregatorV3Interface priceFeed) {
+		priceFeed = s_priceFeeds[asset];
+		if (address(priceFeed) == address(0)) revert Gifty__error_4(asset);
 	}
 
 	/* --------------------Private functions-------------------- */
@@ -381,6 +379,8 @@ contract GiftyController is IGiftyController, Ownable {
 	}
 
 	function _getETHAddress() internal pure returns (address) {
+		// About this address:
+		// https://ethereum.stackexchange.com/questions/87352/why-does-this-address-have-a-balance
 		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 	}
 
