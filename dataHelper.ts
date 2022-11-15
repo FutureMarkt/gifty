@@ -16,4 +16,4 @@ export const ethAddress: string = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 // block time == 2 sec (Matic)
 export const giftRefundWithCommissionThresholdInBlocks = 43200; // 1 day
 export const giftRefundWithoutCommissionThresholdInBlocks = 1296000; // 1 month
-export const refundGiftCommission = 10; // %
+export const refundGiftCommission = 1000; // 10 with 2 decimals%

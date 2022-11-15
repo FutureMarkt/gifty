@@ -17,7 +17,7 @@ const config: HardhatUserConfig = {
 
 		settings: {
 			// If you want to use the hardhat-coverage plugin - viaIR should be equal to false
-			viaIR: true,
+			viaIR: false,
 
 			optimizer: {
 				enabled: true,

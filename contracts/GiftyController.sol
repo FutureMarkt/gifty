@@ -152,7 +152,7 @@ contract GiftyController is IGiftyController, Ownable {
 	 * @param piggyBox - contract that will receive the earned funds.
 	 * @param minGiftPriceInUsd - the minimum price of a gift in dollars.
 	 *
-	 * @param tokensToBeAdded - array of token addresses that will be initially added to the contract.
+	 * @param tokenForPriceFeeds - array of token addresses that will be initially added to the contract.
 	 * @param priceFeeds - array of priceFeeds for tokens that will be initially added to the contract.
 	 *
 	 * @dev The number of array elements in tokensToBeAdded and priceFeeds must be identical.
@@ -163,12 +163,12 @@ contract GiftyController is IGiftyController, Ownable {
 		IGiftyToken giftyToken,
 		address payable piggyBox,
 		uint256 minGiftPriceInUsd,
-		address[] memory tokensToBeAdded,
-		AggregatorV3Interface[] memory priceFeeds,
-		AggregatorV3Interface priceFeedForETH,
 		uint256 refundGiftWithCommissionThreshold,
 		uint256 freeRefundGiftThreshold,
-		uint256 giftRefundCommission
+		uint256 giftRefundCommission,
+		address[] memory tokenForPriceFeeds,
+		AggregatorV3Interface[] memory priceFeeds,
+		AggregatorV3Interface priceFeedForETH
 	) {
 		// The address must not be zero address
 		if (address(giftyToken) == address(0)) revert Gifty__error_8();
@@ -182,7 +182,7 @@ contract GiftyController is IGiftyController, Ownable {
 		);
 		changeMinimalGiftPrice(minGiftPriceInUsd);
 		changePiggyBox(piggyBox);
-		addTokens(tokensToBeAdded, priceFeeds);
+		addTokens(tokenForPriceFeeds, priceFeeds);
 		_changePriceFeedForToken(_getETHAddress(), priceFeedForETH);
 	}
 
@@ -217,7 +217,6 @@ contract GiftyController is IGiftyController, Ownable {
 	 * @param minGiftPrice - new minimal gift price.
 	 */
 	function changeMinimalGiftPrice(uint256 minGiftPrice) public onlyOwner {
-		// TODO to be tested
 		if (minGiftPrice == 0) revert Gifty__error_8();
 
 		s_minGiftPriceInUsd = minGiftPrice.toUint96();
@@ -225,7 +224,6 @@ contract GiftyController is IGiftyController, Ownable {
 	}
 
 	function changePiggyBox(address payable newPiggyBox) public onlyOwner {
-		// TODO to be tested
 		if (newPiggyBox == address(0)) revert Gifty__error_8();
 
 		s_piggyBox = newPiggyBox;
@@ -263,7 +261,6 @@ contract GiftyController is IGiftyController, Ownable {
 	}
 
 	function transferToPiggyBoxETH(uint256 amount) external onlyOwner {
-		// TODO to be tested
 		_transferToPiggyBoxETH(amount);
 	}
 
@@ -276,6 +273,7 @@ contract GiftyController is IGiftyController, Ownable {
 		AggregatorV3Interface[] memory priceFeeds
 	)
 		external
+		onlyOwner
 		// The lengths of the arrays must match since each token must be assigned a price feed
 		compareLengths(tokens.length, priceFeeds.length)
 	{
@@ -288,9 +286,9 @@ contract GiftyController is IGiftyController, Ownable {
 	function splitCommission() external onlyOwner {}
 
 	/* --------------------Internal functions-------------------- */
-	function _getPriceFeed(address token) internal view returns (AggregatorV3Interface priceFeed) {
-		priceFeed = s_priceFeeds[token];
-		if (address(priceFeed) == address(0)) revert Gifty__error_4(token);
+	function _getPriceFeed(address asset) internal view returns (AggregatorV3Interface priceFeed) {
+		priceFeed = s_priceFeeds[asset];
+		if (address(priceFeed) == address(0)) revert Gifty__error_4(asset);
 	}
 
 	/* --------------------Private functions-------------------- */
@@ -381,6 +379,8 @@ contract GiftyController is IGiftyController, Ownable {
 	}
 
 	function _getETHAddress() internal pure returns (address) {
+		// About this address:
+		// https://ethereum.stackexchange.com/questions/87352/why-does-this-address-have-a-balance
 		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 	}
 
@@ -415,6 +415,6 @@ contract GiftyController is IGiftyController, Ownable {
 	}
 
 	function getPriceFeedForToken(address token) external view returns (AggregatorV3Interface) {
-		return s_priceFeeds[token];
+		return _getPriceFeed(token);
 	}
 }

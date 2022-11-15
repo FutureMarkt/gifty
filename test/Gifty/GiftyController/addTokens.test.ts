@@ -1,8 +1,6 @@
 import { expect } from "chai";
-
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
-
 import { ZeroAddress, NonZeroAddress } from "../../TestHelper";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
 
@@ -96,10 +94,11 @@ describe("Add token", function () {
 		expect(amountOfAllowedTokens).eq(tokensExample.length);
 	});
 
+	const exampleTokenAmount: number = 15;
+
 	it("Add many tokens - works correctly (15 tokens)", async function () {
 		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
 
-		const exampleTokenAmount: number = 15;
 		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < exampleTokenAmount; i++) {
@@ -130,7 +129,6 @@ describe("Add token", function () {
 	it("Add many tokens - assign a correct index (15 tokens)", async function () {
 		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
 
-		const exampleTokenAmount: number = 15;
 		const tokensExample: string[] = [giftyToken.address];
 
 		for (let i = 0; i < exampleTokenAmount; i++) {
@@ -158,5 +156,29 @@ describe("Add token", function () {
 				allowedTokens[i]
 			);
 		}
+	});
+
+	it("Different arrays length - revert", async function () {
+		const { owner, gifty } = await loadFixture(GiftyFixture);
+
+		const tokensExample: string[] = [];
+
+		for (let i = 0; i < exampleTokenAmount; i++) {
+			const newMockToken: MockToken = await new MockToken__factory(
+				owner
+			).deploy();
+
+			tokensExample.push(newMockToken.address);
+		}
+
+		const priceFeedsForTokens: string[] = new Array(
+			tokensExample.length
+		).fill(NonZeroAddress);
+
+		tokensExample.push(NonZeroAddress);
+
+		await expect(gifty.addTokens(tokensExample, priceFeedsForTokens))
+			.to.be.revertedWithCustomError(gifty, "Gifty__error_10")
+			.withArgs(tokensExample.length, priceFeedsForTokens.length);
 	});
 });

@@ -97,4 +97,23 @@ describe("Gifty | claimSurplusesETH", function () {
 			.to.emit(gifty, "SurplusesClaimed")
 			.withArgs(owner.address, anyUint);
 	});
+
+	it("Reentrancy attack to claimSurplusesETH", async function () {
+		const { gifty, attacker, receiver } = await loadFixture(GiftyFixture);
+
+		await attacker.giftETH(gifty.address, receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		await attacker.giftETH(gifty.address, receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission.mul(5),
+		});
+
+		await expect(
+			attacker.attack(gifty.address, 1, 3, { gasLimit: 30000000 })
+		).to.be.revertedWithCustomError(
+			gifty,
+			"ExternalAccountsInteraction__lowLevelTransferIsFailed"
+		);
+	});
 });

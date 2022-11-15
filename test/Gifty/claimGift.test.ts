@@ -3,6 +3,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "./fixtures/GiftyFixture";
 import { OneEther, OneEtherGiftWithCommission } from "../TestHelper";
 import { BigNumber } from "ethers";
+import { ethers } from "hardhat";
 
 describe("Gifty | claimGift | ETH", function () {
 	const giftAmount: BigNumber = OneEther;
@@ -41,7 +42,8 @@ describe("Gifty | claimGift | ETH", function () {
 			value: OneEtherGiftWithCommission,
 		});
 
-		// TODO
+		await gifty.refundGift(0);
+
 		await expect(
 			gifty.connect(receiver).claimGift(0)
 		).to.be.revertedWithCustomError(gifty, "Gifty__error_14");
@@ -85,5 +87,24 @@ describe("Gifty | claimGift | ETH", function () {
 		await expect(gifty.connect(receiver).claimGift(0))
 			.to.emit(gifty, "GiftClaimed")
 			.withArgs(0);
+	});
+
+	it("Reentrancy attack to claim", async function () {
+		const { gifty, attacker } = await loadFixture(GiftyFixture);
+
+		await gifty.giftETH(attacker.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		await gifty.giftETH(attacker.address, giftAmount, {
+			value: OneEtherGiftWithCommission.mul(5),
+		});
+
+		await expect(
+			attacker.attack(gifty.address, 0, 1, { gasLimit: 30000000 })
+		).to.be.revertedWithCustomError(
+			gifty,
+			"ExternalAccountsInteraction__lowLevelTransferIsFailed"
+		);
 	});
 });
