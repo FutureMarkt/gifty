@@ -6,7 +6,6 @@ import { GiftyFixture } from "./fixtures/GiftyFixture";
 import {
 	OneEther,
 	OneEtherGiftWithCommission,
-	ZeroAddress,
 	getConvertedPrice,
 	EthAddress,
 } from "../TestHelper";

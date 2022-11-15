@@ -102,12 +102,12 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			giftyToken,
 			piggyBox,
 			minGiftPriceInUsd,
-			tokenForPriceFeeds,
-			priceFeeds,
-			priceFeedForETH,
 			refundGiftWithCommissionThreshold,
 			freeRefundGiftThreshold,
-			giftRefundCommission
+			giftRefundCommission,
+			tokenForPriceFeeds,
+			priceFeeds,
+			priceFeedForETH
 		)
 	{}
 

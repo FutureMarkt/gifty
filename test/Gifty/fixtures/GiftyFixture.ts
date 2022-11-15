@@ -63,8 +63,9 @@ export async function GiftyFixture() {
 		ethMockAggregator.address
 	);
 
-	// Changing the address of the gifty in the token contract
+	// Changing the address of the gifty in the token contract and piggyBox
 	await giftyToken.changeGiftyAddress(gifty.address);
+	await piggyBox.changeGifty(gifty.address);
 
 	const attacker: Attacker = await new Attacker__factory(owner).deploy();
 
@@ -74,6 +75,7 @@ export async function GiftyFixture() {
 		receiver,
 		gifty,
 		giftyToken,
+		piggyBox,
 		ethMockAggregator,
 		attacker,
 	};

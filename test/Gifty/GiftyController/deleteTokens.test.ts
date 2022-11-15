@@ -1,19 +1,30 @@
 import { expect } from "chai";
 import { BigNumber } from "ethers";
-
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
-
 import { MockToken, MockToken__factory } from "../../../typechain-types";
 import { NonZeroAddress } from "../../TestHelper";
 
 let sampleToken: string, listOfAllowedTokens: string[];
 
 describe("Delete token", function () {
-	it("Delete token should delete them from allowed tokens", async function () {
-		const { gifty, giftyToken } = await loadFixture(GiftyFixture);
+	it("Not owner", async function () {
+		const { gifty, giftyToken, signers } = await loadFixture(GiftyFixture);
 
 		sampleToken = giftyToken.address;
+
+		// Add
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
+		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
+
+		// Deltete
+		await expect(
+			gifty.connect(signers[2]).deleteTokens([sampleToken])
+		).to.be.rejectedWith("Ownable: caller is not the owner");
+	});
+
+	it("Delete token should delete them from allowed tokens", async function () {
+		const { gifty, giftyToken } = await loadFixture(GiftyFixture);
 
 		// Add
 		await gifty.addTokens([sampleToken], [NonZeroAddress]);

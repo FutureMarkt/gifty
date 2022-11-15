@@ -15,9 +15,15 @@ contract PiggyBox is Ownable {
 
 	address private s_gifty;
 
+	event GiftyChanged(address indexed gifty);
 	event PiggyBoxFunded(uint256 amount);
 	event TokenWithdrawn(address indexed token, address indexed to, uint256 amount);
 	event ETHWithdrawn(address indexed to, uint256 amount);
+
+	function changeGifty(address gifty) external onlyOwner {
+		s_gifty = gifty;
+		emit GiftyChanged(gifty);
+	}
 
 	function withdrawToken(
 		IERC20 token,
