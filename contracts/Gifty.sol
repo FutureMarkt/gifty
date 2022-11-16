@@ -137,10 +137,25 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 	function giftToken(
 		address receiver,
-		address tokenToGift,
-		uint256 amount
+		address asset,
+		uint256 giftAmount
 	) external validateReceiver(receiver) {
-		// uint256 giftPriceInUSD = _calculateGiftPrice(tokenToGift, amount);
+		if (!s_tokenInfo[asset].isTokenAllowed) revert Gifty__error_16(asset);
+
+		uint256 giftPriceInUSD = _calculateGiftPrice(asset, giftAmount);
+		_validateMinimalGiftPrice(giftPriceInUSD);
+
+		uint256 chargedCommission = _chargeCommission(
+			asset,
+			giftAmount,
+			giftPriceInUSD,
+			TypeOfCommission.TOKEN
+		);
+
+		uint256 giftAmountWithCommission = giftAmount + chargedCommission;
+		IERC20(asset).safeTransferFrom(msg.sender, address(this), giftAmountWithCommission);
+
+		_createGift(receiver, asset, giftAmount, giftPriceInUSD, TypeOfGift.FT);
 	}
 
 	function giftTokenWithGFTCommission(
@@ -235,7 +250,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 assetAmount,
 		uint256 amountInUSD,
 		TypeOfCommission commissionType
-	) internal {
+	) internal returns (uint256 commissionCharged) {
 		// Get a commission interest rate for the gift.
 		(
 			uint256 commissionRate, /* uint256 commissionRateGFT */
@@ -245,7 +260,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		if (commissionType == TypeOfCommission.GFT) {
 			// TODO commission GFT TOKEN: 25% free
 		} else if (commissionType == TypeOfCommission.TOKEN) {
-			// TODO commission token - 100% paid from token
+			commissionCharged = _calculateCommission(assetAmount, commissionRate);
+
+			s_giftyCommission[asset] += commissionCharged;
+			_updateTheUserFinInfo(amountInUSD, commissionRate, false);
 		} else {
 			if (msg.value < assetAmount) revert Gifty__error_5(assetAmount, msg.value);
 
@@ -286,6 +304,8 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 			// Calculate and update financial information in dollar terms
 			_updateTheUserFinInfo(amountInUSD, commissionRate, false);
+
+			commissionCharged = commissionShouldBePaid;
 		}
 	}
 

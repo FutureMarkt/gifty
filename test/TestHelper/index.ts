@@ -11,7 +11,8 @@ export const NonZeroAddress: string = "0x000000000000000000000000000000000000000
 export const EthAddress: string = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 export const mockAggregatorDecimals: number = 8;
-export const mockAggregatorAnswer: BigNumber = ethers.utils.parseUnits("1500",8);
+export const mockAggregatorAnswerETH: BigNumber = ethers.utils.parseUnits("1500",8);
+export const mockAggregatorAnswerToken: BigNumber = ethers.utils.parseUnits("50",8);
 
 // block time == 2 sec (Matic)
 export const giftRefundWithCommissionThresholdInBlocks = 43200; // 1 day

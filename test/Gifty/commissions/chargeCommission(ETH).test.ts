@@ -140,16 +140,15 @@ describe("Gifty | GiftETH", function () {
 			});
 
 			// Get user turnover after gift
-			const turnoverUSD: BigNumber = (
-				await gifty.getUserInfo(owner.address)
-			).finInfo.totalTurnoverInUSD;
-
+			const {
+				finInfo: { totalTurnoverInUSD },
+			} = await gifty.getUserInfo(owner.address);
 			// Calculate expected turnover
 			const expectedTurnover: BigNumber = ethPriceWith18Decimals
 				.mul(giftAmount)
 				.div(OneEther);
 
-			expect(turnoverUSD).eq(expectedTurnover);
+			expect(totalTurnoverInUSD).eq(expectedTurnover);
 		});
 
 		it("The total commission payed of the user's funds increased in the dollar equivalent of a commission payed", async function () {
@@ -173,16 +172,16 @@ describe("Gifty | GiftETH", function () {
 				value: OneEtherGiftWithCommission,
 			});
 
-			const payedCommissionInUsd: BigNumber = (
-				await gifty.getUserInfo(owner.address)
-			).finInfo.commissionPayedInUSD;
+			const {
+				finInfo: { commissionPayedInUSD },
+			} = await gifty.getUserInfo(owner.address);
 
-			// Calculate expected turnover
+			// Calculate expected commission payed
 			const expectedCommissionPayed: BigNumber = ethPriceWith18Decimals
 				.mul(commissionAmount)
 				.div(OneEther);
 
-			expect(payedCommissionInUsd).eq(expectedCommissionPayed);
+			expect(commissionPayedInUSD).eq(expectedCommissionPayed);
 		});
 	});
 

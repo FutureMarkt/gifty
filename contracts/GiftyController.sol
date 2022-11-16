@@ -25,14 +25,15 @@ contract GiftyController is IGiftyController, Ownable {
 	using SafeERC20 for IERC20;
 	using SafeCast for uint256;
 
+	// prettier-ignore
 	/**
 	 * @notice Information about each token
 	 * @notice indexInTheArray - position in s_allowedTokens
 	 * @notice isTokenAllowed - is token in system
 	 */
 	struct TokenInfo {
-		uint248 indexInTheArray; //--|
-		bool isTokenAllowed; //    --|
+		uint248 indexInTheArray; // --|
+		bool isTokenAllowed;     // --|
 	}
 
 	// TODO add comments

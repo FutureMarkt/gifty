@@ -82,3 +82,6 @@ error Gifty__error_14();
  * @notice you will be able to pick it up for free.
  */
 error Gifty__error_15();
+
+/** @notice The asset you want to give as a gift is not supported by the platform at the moment. */
+error Gifty__error_16(address asset);

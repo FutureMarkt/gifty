@@ -9,6 +9,7 @@ import {
 import {
 	mockAggregatorDecimals,
 	mockAggregatorAnswerETH,
+	mockAggregatorAnswerToken,
 	giftRefundWithCommissionThresholdInBlocks,
 	giftRefundWithoutCommissionThresholdInBlocks,
 	refundGiftCommission,
@@ -23,11 +24,11 @@ import {
 	GiftyToken__factory,
 	MockV3Aggregator,
 	MockV3Aggregator__factory,
-	Attacker,
-	Attacker__factory,
+	MockToken,
+	MockToken__factory,
 } from "../../../typechain-types";
 
-export async function GiftyFixture() {
+export async function GiftTokenFixture() {
 	// Get signers for tests
 	const signers: SignerWithAddress[] = await ethers.getSigners();
 	const [owner, receiver]: SignerWithAddress[] = signers;
@@ -39,6 +40,13 @@ export async function GiftyFixture() {
 			mockAggregatorAnswerETH
 		);
 
+	// Deploy Aggregator Price Feed mock
+	const tokenMockAggregator: MockV3Aggregator =
+		await new MockV3Aggregator__factory(owner).deploy(
+			mockAggregatorDecimals,
+			mockAggregatorAnswerToken
+		);
+
 	// Deploy piggyBox
 	const piggyBox: PiggyBox = await new PiggyBox__factory(owner).deploy();
 
@@ -47,8 +55,10 @@ export async function GiftyFixture() {
 		signers[0]
 	).deploy(initialSupplyReceiver, initialSupply);
 
-	const initialTokens: string[] = [];
-	const initialAggregatorsAddress: string[] = [];
+	const testToken: MockToken = await new MockToken__factory(owner).deploy();
+
+	const initialTokens: string[] = [testToken.address];
+	const initialAggregatorsAddress: string[] = [tokenMockAggregator.address];
 
 	// Deploy gifty main contract
 	const gifty: Gifty = await new Gifty__factory(owner).deploy(
@@ -67,16 +77,17 @@ export async function GiftyFixture() {
 	await giftyToken.changeGiftyAddress(gifty.address);
 	await piggyBox.changeGifty(gifty.address);
 
-	const attacker: Attacker = await new Attacker__factory(owner).deploy();
+	await testToken.approve(gifty.address, ethers.constants.MaxUint256);
 
 	return {
 		signers,
 		owner,
 		receiver,
 		gifty,
-		giftyToken,
 		piggyBox,
+		giftyToken,
+		testToken,
 		ethMockAggregator,
-		attacker,
+		tokenMockAggregator,
 	};
 }
