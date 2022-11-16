@@ -1,6 +1,7 @@
 import { expect } from "chai";
 import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "./fixtures/GiftyFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { BigNumber } from "ethers";
 import {
 	EthAddress,
 	OneEther,
@@ -10,9 +11,7 @@ import {
 	giftRefundWithCommissionThresholdInBlocks,
 	getCommissionAmount,
 	getConvertedPrice,
-} from "../TestHelper";
-import { BigNumber } from "ethers";
-import { ethers } from "hardhat";
+} from "../../TestHelper";
 
 describe("Gifty | refundGift | ETH", function () {
 	const giftAmount: BigNumber = OneEther;

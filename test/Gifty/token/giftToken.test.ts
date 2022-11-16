@@ -1,11 +1,11 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftTokenFixture } from "./fixtures/GiftTokenFixture";
+import { GiftTokenFixture } from "../fixtures/GiftTokenFixture";
 import {
 	OneEther,
 	getConvertedPrice,
 	getCommissionAmount,
-} from "../TestHelper";
+} from "../../TestHelper";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 
@@ -226,5 +226,20 @@ describe("Gifty | giftETH", function () {
 		for (let i = 0; i < expectedGift.length; i++) {
 			expect(gift[i]).eq(expectedGift[i]);
 		}
+	});
+
+	it("GiftCreated should be emmited with correct args", async function () {
+		const { gifty, receiver, owner } = await loadFixture(GiftTokenFixture);
+
+		await expect(
+			gifty.giftToken(receiver.address, tokenAddress, giftAmount)
+		)
+			.to.emit(gifty, "GiftCreated")
+			.withArgs(
+				owner.address,
+				receiver.address,
+				tokenAddress,
+				giftAmount
+			);
 	});
 });
