@@ -2,13 +2,13 @@ import { ethers } from "hardhat";
 
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "./fixtures/GiftyFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import {
 	OneEther,
 	OneEtherGiftWithCommission,
 	getConvertedPrice,
 	EthAddress,
-} from "../TestHelper";
+} from "../../TestHelper";
 import { BigNumber } from "ethers";
 
 describe("Gifty | giftETH", function () {

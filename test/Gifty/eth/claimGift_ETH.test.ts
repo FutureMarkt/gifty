@@ -1,11 +1,10 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "./fixtures/GiftyFixture";
-import { OneEther, OneEtherGiftWithCommission } from "../TestHelper";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { OneEther, OneEtherGiftWithCommission } from "../../TestHelper";
 import { BigNumber } from "ethers";
-import { ethers } from "hardhat";
 
-describe("Gifty | claimGift | ETH", function () {
+describe("Gifty | Claim ETH", function () {
 	const giftAmount: BigNumber = OneEther;
 
 	it("When a non-receiver of a gift tries to claim tx should be reverted", async function () {
