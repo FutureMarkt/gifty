@@ -199,7 +199,9 @@ describe("Gifty | giftETH", function () {
 			await loadFixture(GiftTokenFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
-		const gifttBlock: number = await ethers.provider.getBlockNumber();
+		const currentBlock: number = await ethers.provider.getBlockNumber();
+		const currentTimeStamp: number = (await ethers.provider.getBlock(currentBlock)).timestamp;
+
 
 		const gift = await gifty.getExactGift(0);
 
@@ -218,7 +220,8 @@ describe("Gifty | giftETH", function () {
 			giftAmount,
 			tokenAddress,
 			2 /* Token */,
-			gifttBlock,
+			currentBlock,
+			currentTimeStamp,
 			false,
 			false,
 		];

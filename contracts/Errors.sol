@@ -85,3 +85,16 @@ error Gifty__error_15();
 
 /** @notice The asset you want to give as a gift is not supported by the platform at the moment. */
 error Gifty__error_16(address asset);
+
+/**
+ * @notice Offset from last element gt gifts array length
+ *
+ * @param offset - offset from end of the array
+ * @param arrayLength - current gifts array length
+ */
+error Gifty__error_17(uint256 offset, uint256 arrayLength);
+
+/**
+ * @notice The number of remaining gifts is less than the number of desired gifts.
+ */
+error Gifty__error_18();

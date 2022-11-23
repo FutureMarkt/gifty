@@ -21,7 +21,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	using SafeCast for uint256;
 
 	enum TypeOfCommission {
-		DEFAULT, // 0
+		DEFAULT, // Default value (0)
 		ETH,
 		GFT,
 		TOKEN
@@ -33,7 +33,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	 * @notice NFT - Non-fungible token
 	 */
 	enum TypeOfGift {
-		DEFAULT, // 0
+		DEFAULT, // Default value (0)
 		ETH,
 		FT,
 		NFT
@@ -59,7 +59,8 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 amount;
 		IERC20 asset;           // 20 bytes ----------------|
 		TypeOfGift giftType;    // 1 byte (uint8) ----------|
-		uint72 giftedAtBlock;   // 9 bytes -----------------|
+		uint32 giftedAtBlock;   // 4 bytes -----------------|
+		uint40 giftedAtTime;   	// 5 bytes -----------------|
 		bool isClaimed;         // 1 byte ------------------|
 		bool isRefunded;        // 1 byte ------------------|
 	}
@@ -125,6 +126,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		_createGift(receiver, ETH, amount, giftPriceInUSD, TypeOfGift.ETH);
 	}
 
+	// TODO
 	function giftETHWithGFTCommission(address receiver)
 		external
 		payable
@@ -152,12 +154,18 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			TypeOfCommission.TOKEN
 		);
 
-		uint256 giftAmountWithCommission = giftAmount + chargedCommission;
-		IERC20(asset).safeTransferFrom(msg.sender, address(this), giftAmountWithCommission);
+		uint256 transferedAmount = _transferIn(
+			IERC20(asset),
+			msg.sender,
+			giftAmount + chargedCommission
+		);
 
-		_createGift(receiver, asset, giftAmount, giftPriceInUSD, TypeOfGift.FT);
+		uint256 amountToGift = transferedAmount - chargedCommission;
+
+		_createGift(receiver, asset, amountToGift, giftPriceInUSD, TypeOfGift.FT);
 	}
 
+	// TODO
 	function giftTokenWithGFTCommission(
 		address receiver,
 		address tokenToGift,
@@ -188,7 +196,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		_validateGiftUnpacking(currentGift.giver, currentGift.isClaimed, currentGift.isRefunded);
 
 		GiftRefundSettings memory refundSettings = s_giftRefundSettings;
-		uint256 blockDifference = block.number - currentGift.giftedAtBlock;
+		uint256 blockDifference = _blockNumber() - currentGift.giftedAtBlock;
 
 		uint256 refundAmount;
 
@@ -213,6 +221,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		// More blocks have passed than the free withdrawal threshold
 		else if (blockDifference > refundSettings.freeRefundGiftThreshold) {
 			refundAmount = currentGift.amount;
+			// TODO _updateTheUserFinInfoRefund ????
 		}
 		// else revert (refundGiftWithCommissionThreshold < diff < freeRefundGiftThreshold)
 		else revert Gifty__error_15();
@@ -346,7 +355,8 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			amount: assetAmount,
 			asset: IERC20(assetToGift),
 			giftType: currentGiftType,
-			giftedAtBlock: (block.number).toUint72(),
+			giftedAtBlock: _blockNumber(),
+			giftedAtTime: _blockTimestamp(),
 			isClaimed: false,
 			isRefunded: false
 		});
@@ -389,6 +399,26 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	function _calculateGiftPrice(address asset, uint256 amount) internal view returns (uint256) {
 		AggregatorV3Interface assetPriceFeed = _getPriceFeed(asset);
 		return amount.getConversionRate(assetPriceFeed);
+	}
+
+	function _blockNumber() internal view returns (uint32) {
+		return block.number.toUint32();
+	}
+
+	function _blockTimestamp() internal view returns (uint40) {
+		return block.timestamp.toUint40();
+	}
+
+	function _transferIn(
+		IERC20 asset,
+		address sender,
+		uint256 amount
+	) internal returns (uint256) {
+		uint256 assetBalanceBefore = asset.balanceOf(address(this));
+		asset.safeTransferFrom(sender, address(this), amount);
+		uint256 assetBalanceAfter = asset.balanceOf(address(this));
+
+		return assetBalanceAfter - assetBalanceBefore;
 	}
 
 	/* --------------------Private functions-------------------- */
@@ -434,6 +464,37 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	function getUserInfo(address user) external view returns (UserInfo memory) {
 		return s_userInformation[user];
 	}
+
+	function getReceivedGiftBatche(
+		address user,
+		uint256 offsetFromLastGift,
+		uint256 amountOfGifts
+	) external view returns (Gift[] memory) {
+		uint256[] memory currentUserReceivedGifts = s_userInformation[user].receivedGifts;
+
+		if (currentUserReceivedGifts.length < offsetFromLastGift)
+			revert Gifty__error_17(offsetFromLastGift, currentUserReceivedGifts.length);
+
+		uint256 startGift = (currentUserReceivedGifts.length - 1) - offsetFromLastGift;
+
+		// TODO if amountOfGifts > remained gifts?
+
+		Gift[] memory targetGifts = new Gift[](amountOfGifts);
+
+		for (uint256 i; i < amountOfGifts; i++)
+			targetGifts[i] = s_allGifts[currentUserReceivedGifts[startGift - i]];
+
+		return targetGifts;
+	}
+
+	// function getGivenGiftBatche(
+	// 	address user,
+	// 	uint256 offsetFromLastGift,
+	// 	uint256 amountOfGifts
+	// ) external view returns (Gift memory) {
+	// 	uint256[] memory currentUserReceivedGifts = s_userInformation[user].receivedGifts;
+	// 	uint256[] memory currentUserGivenGifts = s_userInformation[user].givenGifts;
+	// }
 
 	function version() external pure returns (uint256) {
 		return 1;

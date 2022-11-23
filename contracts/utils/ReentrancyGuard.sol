@@ -9,7 +9,7 @@ error ReentrancyGuard__reentrantCall();
  * @title Contract module that helps prevent reentrant calls to a function.
  *
  * @notice This contract is based on the OpenZeppelin contract (https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol)
- * @notice with the only difference - it uses a custom error instead of require with text.
+ * @notice with the only difference - it uses a custom error instead of require with string.
  *
  * @notice For more details, see the OpenZeppelin documentation.
  */

@@ -236,7 +236,9 @@ describe("Gifty | giftETH", function () {
 		await gifty.connect(receiver).giftETH(owner.address, giftAmount, {
 			value: OneEtherGiftWithCommission,
 		});
-		const currentBlock = await ethers.provider.getBlockNumber();
+		const currentBlock: number = await ethers.provider.getBlockNumber();
+		const currentTimeStamp: number = (await ethers.provider.getBlock(currentBlock)).timestamp;
+
 
 		const giftId: BigNumber = (await gifty.getGiftsAmount()).sub(1);
 		const latestGift: any[] = await gifty.getExactGift(giftId);
@@ -250,6 +252,7 @@ describe("Gifty | giftETH", function () {
 			EthAddress,
 			1, // Gift type - ETH
 			currentBlock,
+			currentTimeStamp,
 			false,
 		];
 
