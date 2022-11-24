@@ -1,6 +1,10 @@
 import { expect } from "chai";
-import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import {
+	loadFixture,
+	mine,
+	time,
+} from "@nomicfoundation/hardhat-network-helpers";
+import { GiftyFixture } from "./fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 import {
 	EthAddress,
@@ -11,7 +15,7 @@ import {
 	giftRefundWithCommissionThresholdInBlocks,
 	getCommissionAmount,
 	getConvertedPrice,
-} from "../../TestHelper";
+} from "../TestHelper";
 
 describe("Gifty | refundGift | ETH", function () {
 	const giftAmount: BigNumber = OneEther;
@@ -283,5 +287,54 @@ describe("Gifty | refundGift | ETH", function () {
 			gifty,
 			"ExternalAccountsInteraction__lowLevelTransferIsFailed"
 		);
+	});
+
+	it("If commission free refund - totalTurnover should be reduced", async function () {
+		const { gifty, receiver, owner, ethMockAggregator } =
+			await loadFixture(GiftyFixture);
+
+		await gifty.giftETH(receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		const { totalTurnoverInUSD: turnoverBefore } = (
+			await gifty.getUserInfo(owner.address)
+		).finInfo;
+
+		await mine(giftRefundWithoutCommissionThresholdInBlocks + 1);
+		await gifty.refundGift(0);
+
+		const { totalTurnoverInUSD: turnoverAfter } = (
+			await gifty.getUserInfo(owner.address)
+		).finInfo;
+
+		const oneEtherPrice: BigNumber = await getConvertedPrice(
+			ethMockAggregator
+		);
+
+		const turnoverReducedBy: BigNumber = turnoverBefore.sub(turnoverAfter);
+
+		expect(turnoverReducedBy).eq(oneEtherPrice);
+	});
+
+	it("If commission free refund - commission payed not increased", async function () {
+		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
+
+		await gifty.giftETH(receiver.address, giftAmount, {
+			value: OneEtherGiftWithCommission,
+		});
+
+		const { commissionPayedInUSD: commissionPayedBefore } = (
+			await gifty.getUserInfo(owner.address)
+		).finInfo;
+
+		await mine(giftRefundWithoutCommissionThresholdInBlocks + 1);
+		await gifty.refundGift(0);
+
+		const { commissionPayedInUSD: commissionPayedAfter } = (
+			await gifty.getUserInfo(owner.address)
+		).finInfo;
+
+		expect(commissionPayedBefore).eq(commissionPayedAfter);
 	});
 });

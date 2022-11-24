@@ -9,7 +9,7 @@ import {
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 
-describe("Gifty | giftETH", function () {
+describe("Gifty | giftToken", function () {
 	const giftAmount: BigNumber = OneEther;
 	let tokenAddress: string = "";
 
@@ -199,7 +199,10 @@ describe("Gifty | giftETH", function () {
 			await loadFixture(GiftTokenFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
-		const gifttBlock: number = await ethers.provider.getBlockNumber();
+		const currentBlock: number = await ethers.provider.getBlockNumber();
+		const currentTimeStamp: number = (
+			await ethers.provider.getBlock(currentBlock)
+		).timestamp;
 
 		const gift = await gifty.getExactGift(0);
 
@@ -218,7 +221,8 @@ describe("Gifty | giftETH", function () {
 			giftAmount,
 			tokenAddress,
 			2 /* Token */,
-			gifttBlock,
+			currentBlock,
+			currentTimeStamp,
 			false,
 			false,
 		];
@@ -239,7 +243,8 @@ describe("Gifty | giftETH", function () {
 				owner.address,
 				receiver.address,
 				tokenAddress,
-				giftAmount
+				giftAmount,
+				0 // first gift
 			);
 	});
 });
