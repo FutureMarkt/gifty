@@ -183,7 +183,13 @@ describe("Gifty | giftETH", function () {
 			})
 		)
 			.to.emit(gifty, "GiftCreated")
-			.withArgs(owner.address, receiver.address, EthAddress, giftAmount);
+			.withArgs(
+				owner.address,
+				receiver.address,
+				EthAddress,
+				giftAmount,
+				0 // first gift
+			);
 	});
 
 	it("The next gift will receive the corresponding index", async function () {
@@ -237,8 +243,9 @@ describe("Gifty | giftETH", function () {
 			value: OneEtherGiftWithCommission,
 		});
 		const currentBlock: number = await ethers.provider.getBlockNumber();
-		const currentTimeStamp: number = (await ethers.provider.getBlock(currentBlock)).timestamp;
-
+		const currentTimeStamp: number = (
+			await ethers.provider.getBlock(currentBlock)
+		).timestamp;
 
 		const giftId: BigNumber = (await gifty.getGiftsAmount()).sub(1);
 		const latestGift: any[] = await gifty.getExactGift(giftId);

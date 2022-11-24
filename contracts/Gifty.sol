@@ -1,18 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-// ! EXAMPLE
-/* -------------------- -------------------- */
-
-/* --------------------Gifty-------------------- */
-import "./interfaces/IGifty.sol";
 import "./GiftyController.sol";
-
-/* --------------------Libs-------------------- */
-import "./GiftyLibraries/PriceConverter.sol";
-
-/* --------------------Utils-------------------- */
+import "./interfaces/IGifty.sol";
 import "./utils/ReentrancyGuard.sol";
+import "./GiftyLibraries/PriceConverter.sol";
 
 contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	using ExternalAccountsInteraction for address payable;
@@ -20,6 +12,14 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	using SafeERC20 for IERC20;
 	using SafeCast for uint256;
 
+	/* --------------------Data types-------------------- */
+
+	/**
+	 * @param DEFAULT - never used
+	 * @param ETH - The commission is paid in native currency
+	 * @param GFT - The commission is paid in Gifty token
+	 * @param TOKEN - The commission is paid in the token that the user gives
+	 */
 	enum TypeOfCommission {
 		DEFAULT, // Default value (0)
 		ETH,
@@ -28,9 +28,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	}
 
 	/**
-	 * @notice ETH - Native cryptocurrency of blockchain
-	 * @notice FT - Fungigle tokens, backward compatible with ERC-20
-	 * @notice NFT - Non-fungible token
+	 * @param DEFAULT - never used
+	 * @param ETH - Native cryptocurrency of blockchain
+	 * @param FT - Fungigle tokens, backward compatible with ERC-20
+	 * @param NFT - Non-fungible token
 	 */
 	enum TypeOfGift {
 		DEFAULT, // Default value (0)
@@ -39,22 +40,50 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		NFT
 	}
 
+	/**
+	 * @notice Financial information in the user profile
+	 *
+	 * @param totalTurnoverInUSD - The total amount of gifts the user made
+	 * @param commissionPayedInUSD - The total amount paid by the user as commission
+	 */
+	// prettier-ignore
 	struct FinancialInfo {
-		uint128 totalTurnoverInUSD; // -----|
+		uint128 totalTurnoverInUSD;   // ---|
 		uint128 commissionPayedInUSD; // ---|
 	}
 
+	/**
+	 * @notice Each user's personal account
+	 *
+	 * @param givenGifts - An array of indexes of gifts that the user gave
+	 * @param receivedGifts - An array of gift indexes that the user received
+	 * @param finInfo - Described above, the structure of FinancialInfo
+	 */
 	struct UserInfo {
 		uint256[] givenGifts;
 		uint256[] receivedGifts;
 		FinancialInfo finInfo;
 	}
 
+	/**
+	 * @notice Gift structure, each gift is represented by this structure
+	 *
+	 * @param giver - Address of gift sender
+	 * @param receiver - Address of the gift recipient
+	 * @param amountInUSD - Gift value in dollars. uint96 - In order to rest against the maximum value, the user needs to give a gift in the amount of $79_228_162_514,26...35
+	 * @param amount - Quantitative representation of the gift
+	 * @param asset - The address of the gift token, if it is ETH - the address will be represented by address(e)
+	 * @param giftType - Described above, enum TypeOfGift
+	 * @param giftedAtBlock - The number of the block in which the gift is sent.
+	 * @param giftedAtTime - The time of the block when the gift was given. (Not used in the contract, but needed for the frontend)
+	 * @param isClaimed - Has this gift been picked up yet?
+	 * @param isClaimed - Did the giver return the gift?
+	 */
 	// prettier-ignore
 	struct Gift {
 		address giver;
-		address receiver;       // -----| uint96 - In order to rest against the maximum value,
-		uint96 amountInUSD;     // -----| the user needs to give a gift in the amount of $79_228_162_514,26...35
+		address receiver;       // 20 bytes -----| 
+		uint96 amountInUSD;     // 12 bytes -----| 
 		uint256 amount;
 		IERC20 asset;           // 20 bytes ----------------|
 		TypeOfGift giftType;    // 1 byte (uint8) ----------|
@@ -64,29 +93,64 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		bool isRefunded;        // 1 byte ------------------|
 	}
 
+	/** @notice All gifts that have ever been given through the contrakt. */
 	Gift[] internal s_allGifts;
 
-	/** @notice All related address information */
+	/** @notice The structure of information about the user associated with his address. */
 	mapping(address => UserInfo) internal s_userInformation;
 
 	/** @notice The amount that the user overpaid when giving ETH */
 	mapping(address => uint256) private s_commissionSurplusesETH;
 
+	/* --------------------Events-------------------- */
+
+	/**
+	 * @notice Emmited when giving a gift
+	 
+     * @param giver - Who gave the gift
+	 * @param receiver - Who the gift is intended for
+	 * @param giftedAsset - What was presented? ETH - address(e)
+	 * @param amount - How many giftedAssets were given
+	 * @param giftId - The index of the gift in the array of all gifts
+	 */
 	event GiftCreated(
 		address indexed giver,
 		address indexed receiver,
-		address indexed giftedToken,
-		uint256 amount
+		address indexed giftedAsset,
+		uint256 amount,
+		uint256 giftId
 	);
+
+	/**
+	 * @notice Emitted when a gift is received
+	 *
+	 * @param giftId - The index of the gift in the array of all gifts
+	 */
 	event GiftClaimed(uint256 giftId);
+
+	/**
+	 * @notice Emmited when the user has taken the surplus of the paid ETH
+	 *
+	 * @param claimer - Who took the surplus
+	 * @param amount - How much of the surplus was taken
+	 */
 	event SurplusesClaimed(address indexed claimer, uint256 amount);
+
+	/**
+	 * @notice Emeitted when the giver has refund his gift back.
+	 * @param giftId - Index of the gift that was withdrawn
+	 */
 	event GiftRefunded(uint256 giftId);
 
+	/* --------------------Modifiers-------------------- */
 	modifier validateReceiver(address receiver) {
 		if (receiver == msg.sender) revert Gifty__error_11();
 		_;
 	}
 
+	/* --------------------Functions-------------------- */
+
+	// TODO change to initializer in upgradeable version
 	constructor(
 		IGiftyToken giftyToken,
 		address payable piggyBox,
@@ -111,6 +175,16 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		)
 	{}
 
+	/**
+	 * @notice The gift of native currency.
+	 * @notice The commission amount must also be added to the amount of the gift sent.
+     * @notice The price of the gift must exceed the minimum threshold.
+	 * @notice A gift cannot be given to yourself.
+	 * @notice No re-entry can be performed.
+
+	 * @param receiver - Address to whom you want to send the gift
+	 * @param amount - How much do you want to give the receiver
+	 */
 	function giftETH(address receiver, uint256 amount)
 		external
 		payable
@@ -136,19 +210,30 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		// uint256 giftPriceInUSD = _calculateGiftPrice(ETH, msg.value);
 	}
 
+	/**
+	 * @notice Token gifting function.
+	 * @notice The token you are trying to gift must be included in the allowed tokens.
+	 * @notice The price of the gift must exceed the minimum gift price threshold.
+	 * @notice You will be charged the amount of tokens equal to the number of tokens to the gift + commission.
+	 * @notice The amount of the gift may be less than the amount you specified in case the token you are sending has an internal commission.
+	 *
+	 * @param receiver - Address to whom you want to send the gift
+	 * @param asset - The address of the token you want to give
+	 * @param amount - How much do you want to give the receiver
+	 */
 	function giftToken(
 		address receiver,
 		address asset,
-		uint256 giftAmount
+		uint256 amount
 	) external validateReceiver(receiver) {
 		if (!s_tokenInfo[asset].isTokenAllowed) revert Gifty__error_16(asset);
 
-		uint256 giftPriceInUSD = _calculateGiftPrice(asset, giftAmount);
+		uint256 giftPriceInUSD = _calculateGiftPrice(asset, amount);
 		_validateMinimalGiftPrice(giftPriceInUSD);
 
 		uint256 chargedCommission = _chargeCommission(
 			asset,
-			giftAmount,
+			amount,
 			giftPriceInUSD,
 			TypeOfCommission.TOKEN
 		);
@@ -156,7 +241,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 transferedAmount = _transferIn(
 			IERC20(asset),
 			msg.sender,
-			giftAmount + chargedCommission
+			amount + chargedCommission
 		);
 
 		uint256 amountToGift = transferedAmount - chargedCommission;
@@ -173,6 +258,15 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		// uint256 giftPriceInUSD = _calculateGiftPrice(tokenToGift, amount);
 	}
 
+	/**
+	 * @notice Receive the gift that was sent to you.
+	 *
+	 * @notice The gift should be intended for you.
+	 * @notice The gift should not be taken away already.
+	 * @notice The gift should not already be refunded.
+	 *
+	 * @param giftId - The index of the gift you want to claim.
+	 */
 	function claimGift(uint256 giftId) external nonReentrant {
 		Gift memory currentGift = s_allGifts[giftId];
 
@@ -189,6 +283,14 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		emit GiftClaimed(giftId);
 	}
 
+	/**
+	 * @notice A function to return a gift that you have sent.
+	 *
+	 * @notice You can return your gift if no more than refundSettings.refundGiftWithCommissionThreshold have passed, then it can be returned with a commission.
+	 * @notice You can also return a gift if more than refundSettings.freeRefundGiftThreshold has passed since the gift was given, without commission.
+	 *
+	 * @param giftId - The index of the gift you want to refund.
+	 */
 	function refundGift(uint256 giftId) external nonReentrant {
 		Gift memory currentGift = s_allGifts[giftId];
 
@@ -376,7 +478,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		s_userInformation[msg.sender].givenGifts.push(newGiftIndex);
 		s_userInformation[receiver].receivedGifts.push(newGiftIndex);
 
-		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount);
+		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount, newGiftIndex);
 	}
 
 	function _sendGift(
