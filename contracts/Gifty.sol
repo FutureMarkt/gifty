@@ -465,36 +465,50 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		return s_userInformation[user];
 	}
 
-	function getReceivedGiftBatche(
+	function getUsersReceivedGiftBatche(
 		address user,
 		uint256 offsetFromLastGift,
 		uint256 amountOfGifts
 	) external view returns (Gift[] memory) {
 		uint256[] memory currentUserReceivedGifts = s_userInformation[user].receivedGifts;
-
-		if (currentUserReceivedGifts.length < offsetFromLastGift)
-			revert Gifty__error_17(offsetFromLastGift, currentUserReceivedGifts.length);
-
-		uint256 startGift = (currentUserReceivedGifts.length - 1) - offsetFromLastGift;
-
-		// TODO if amountOfGifts > remained gifts?
-
-		Gift[] memory targetGifts = new Gift[](amountOfGifts);
-
-		for (uint256 i; i < amountOfGifts; i++)
-			targetGifts[i] = s_allGifts[currentUserReceivedGifts[startGift - i]];
-
-		return targetGifts;
+		return _getExactGifts(currentUserReceivedGifts, offsetFromLastGift, amountOfGifts);
 	}
 
-	// function getGivenGiftBatche(
-	// 	address user,
-	// 	uint256 offsetFromLastGift,
-	// 	uint256 amountOfGifts
-	// ) external view returns (Gift memory) {
-	// 	uint256[] memory currentUserReceivedGifts = s_userInformation[user].receivedGifts;
-	// 	uint256[] memory currentUserGivenGifts = s_userInformation[user].givenGifts;
-	// }
+	function getUsersGivenGiftBatche(
+		address user,
+		uint256 offsetFromLastGift,
+		uint256 amountOfGifts
+	) external view returns (Gift[] memory) {
+		uint256[] memory currentUserGivenGifts = s_userInformation[user].givenGifts;
+		return _getExactGifts(currentUserGivenGifts, offsetFromLastGift, amountOfGifts);
+	}
+
+	function _getExactGifts(
+		uint256[] memory indexesOfGifts,
+		uint256 offsetFromLastGift,
+		uint256 amountOfGifts
+	) internal view returns (Gift[] memory) {
+		// If offset gt length of the given array - revert
+		if (indexesOfGifts.length < offsetFromLastGift)
+			revert Gifty__error_17(offsetFromLastGift, indexesOfGifts.length);
+
+		// Get index of the first element
+		uint256 indexOfFirstDesiredGift = (indexesOfGifts.length - 1) - offsetFromLastGift;
+
+		// If amount of elements gt remaining elements - revert
+		if (indexOfFirstDesiredGift + 1 < amountOfGifts) revert Gifty__error_18();
+
+		// New array, which will be returned
+		Gift[] memory result = new Gift[](amountOfGifts);
+
+		// Fill the array with desired elements
+		for (uint256 i; i < amountOfGifts; i++) {
+			uint256 giftIndex = indexesOfGifts[indexOfFirstDesiredGift - i];
+			result[i] = s_allGifts[giftIndex];
+		}
+
+		return result;
+	}
 
 	function version() external pure returns (uint256) {
 		return 1;
