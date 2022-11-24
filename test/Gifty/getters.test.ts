@@ -121,7 +121,7 @@ describe("Gifty | Getters", function () {
 			}
 		});
 
-		it.only("Exact gift is correct", async function () {
+		it("Exact gift is correct", async function () {
 			const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
 
 			for (let i = 1; i < 6; i++) {

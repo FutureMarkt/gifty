@@ -44,7 +44,6 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint128 commissionPayedInUSD; // ---|
 	}
 
-	// TODO: thats all?
 	struct UserInfo {
 		uint256[] givenGifts;
 		uint256[] receivedGifts;
@@ -212,16 +211,20 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			s_giftyCommission[address(currentGift.asset)] += commissionAmount;
 
 			// Calculate and update financial information in dollar terms
-			_updateTheUserFinInfo(
+			_updateTheUserFinInfoRefund(
 				currentGift.amountInUSD,
 				refundSettings.giftRefundCommission,
-				true
+				false
 			);
 		}
 		// More blocks have passed than the free withdrawal threshold
 		else if (blockDifference > refundSettings.freeRefundGiftThreshold) {
 			refundAmount = currentGift.amount;
-			// TODO _updateTheUserFinInfoRefund ????
+			_updateTheUserFinInfoRefund(
+				currentGift.amountInUSD,
+				refundSettings.giftRefundCommission,
+				true
+			);
 		}
 		// else revert (refundGiftWithCommissionThreshold < diff < freeRefundGiftThreshold)
 		else revert Gifty__error_15();
@@ -272,7 +275,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			commissionCharged = _calculateCommission(assetAmount, commissionRate);
 
 			s_giftyCommission[asset] += commissionCharged;
-			_updateTheUserFinInfo(amountInUSD, commissionRate, false);
+			_updateTheUserFinInfo(amountInUSD, commissionRate);
 		} else {
 			if (msg.value < assetAmount) revert Gifty__error_5(assetAmount, msg.value);
 
@@ -312,17 +315,13 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			}
 
 			// Calculate and update financial information in dollar terms
-			_updateTheUserFinInfo(amountInUSD, commissionRate, false);
+			_updateTheUserFinInfo(amountInUSD, commissionRate);
 
 			commissionCharged = commissionShouldBePaid;
 		}
 	}
 
-	function _updateTheUserFinInfo(
-		uint256 giftPriceInUSD,
-		uint256 commissionRate,
-		bool isRefund
-	) internal {
+	function _updateTheUserFinInfo(uint256 giftPriceInUSD, uint256 commissionRate) internal {
 		/*
             Calculate the equivalent of the gift amount and commission in USD,
             for accounting in the personal account and issuing statuses.
@@ -332,11 +331,21 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		// Updating the user's financial information
 		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
 
-		if (!isRefund) {
-			currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD.toUint128();
-			currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
-		} else {
-			currentUserFinInfo.totalTurnoverInUSD -= giftPriceInUSD.toUint128();
+		currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD.toUint128();
+		currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
+	}
+
+	function _updateTheUserFinInfoRefund(
+		uint256 giftPriceInUSD,
+		uint256 commissionRate,
+		bool isCommissionFreeRefund
+	) internal {
+		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
+
+		currentUserFinInfo.totalTurnoverInUSD -= giftPriceInUSD.toUint128();
+
+		if (!isCommissionFreeRefund) {
+			uint256 commissionInUSD = _calculateCommission(giftPriceInUSD, commissionRate);
 			currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
 		}
 	}
