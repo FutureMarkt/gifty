@@ -67,10 +67,10 @@ error Gifty__error_10(uint256 tokensForPriceFeedsLength, uint256 priceFeedsLengt
 /** @notice Giver is receiver (selfgift). */
 error Gifty__error_11();
 
-/** @notice You're trying to take someone else's gift! */
+/** @notice You're trying to take someone else's gift */
 error Gifty__error_12();
 
-/** @notice You are trying to collect a gift that has already been collected! */
+/** @notice You are trying to collect a gift that has already been collected */
 error Gifty__error_13();
 
 /** @notice The sender canceled the sending of your gift. */
@@ -94,7 +94,5 @@ error Gifty__error_16(address asset);
  */
 error Gifty__error_17(uint256 offset, uint256 arrayLength);
 
-/**
- * @notice The number of remaining gifts is less than the number of desired gifts.
- */
+/** @notice The number of remaining gifts is less than the number of desired gifts. */
 error Gifty__error_18();
