@@ -96,3 +96,15 @@ error Gifty__error_17(uint256 offset, uint256 arrayLength);
 
 /** @notice The number of remaining gifts is less than the number of desired gifts. */
 error Gifty__error_18();
+
+/** @notice Error when calling the get balance function. */
+error Gifty__error_19();
+
+/** @notice Variable with pool address equal to zero */
+error Gifty__error_20();
+
+/** @notice Returned new pool address is equal to zero */
+error Gifty__error_21();
+
+/** @notice Returned price from Uniswap oracle equal to zero */
+error Gifty__error_22();

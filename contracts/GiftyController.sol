@@ -1,22 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-/* --------------------Interfaces-------------------- */
 import "./interfaces/IGiftyController.sol";
 import "./interfaces/IGiftyToken.sol";
 
-/* --------------------Libs-------------------- */
 import "./GiftyLibraries/ExternalAccountsInteraction.sol";
 
-/* --------------------OpenZeppelin-------------------- */
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-/* --------------------ChainLink-------------------- */
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 
-/* --------------------Error list-------------------- */
+import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+
 import "./Errors.sol";
 
 contract GiftyController is IGiftyController, Ownable {
@@ -59,6 +56,18 @@ contract GiftyController is IGiftyController, Ownable {
 
 	/** @notice list of all allowed tokens in the Gifty project */
 	address[] internal s_allowedTokens;
+
+	/**
+	 * @notice Address of the stablecoin token
+	 * @notice Used to get a liquidity pool paired with a GFT token.
+	 */
+	address internal s_stablecoin;
+
+	/** @notice Liquidity pool stablecoin and GFT token */
+	address internal s_pool;
+
+	/** UniswapV3 factory */
+	IUniswapV3Factory internal s_uniswapFactory;
 
 	/**
 	 * @notice Mapping of allowed tokens - will return the "true" if the token is in the Gifty project.
@@ -136,6 +145,15 @@ contract GiftyController is IGiftyController, Ownable {
 		uint256 newGiftRefundCommission
 	);
 
+	/** @notice The event is emitted when the stabelcoin in the contract changes. */
+	event StablecoinChanged(address newStablecoin);
+
+	/** @notice The event is emitted when the liquidity pool in the contract changes. */
+	event PoolUpdated(address pool);
+
+	/** @notice The event is emitted when the UniswapV3Factory in the contract changes. */
+	event UniswapFactoryChanged(address factory);
+
 	/**
 	 * @notice It is used to compare the lengths of two arrays,
 	 * @notice if they are not equal it gives an error.
@@ -148,18 +166,21 @@ contract GiftyController is IGiftyController, Ownable {
 		_;
 	}
 
+	modifier validateZeroAddress(address arg) {
+		if (arg == address(0)) revert Gifty__error_8();
+		_;
+	}
+
 	/**
 	 * @param giftyToken - native platform token.
 	 * @param piggyBox - contract that will receive the earned funds.
 	 * @param minGiftPriceInUsd - the minimum price of a gift in dollars.
 	 *
-	 * @param tokenForPriceFeeds - array of token addresses that will be initially added to the contract.
-	 * @param priceFeeds - array of priceFeeds for tokens that will be initially added to the contract.
-	 *
 	 * @dev The number of array elements in tokensToBeAdded and priceFeeds must be identical.
 	 *
 	 * TODO change to INITIALIZER in upgradeable version
 	 */
+	//prettier-ignore
 	constructor(
 		IGiftyToken giftyToken,
 		address payable piggyBox,
@@ -167,23 +188,21 @@ contract GiftyController is IGiftyController, Ownable {
 		uint256 refundGiftWithCommissionThreshold,
 		uint256 freeRefundGiftThreshold,
 		uint256 giftRefundCommission,
-		address[] memory tokenForPriceFeeds,
-		AggregatorV3Interface[] memory priceFeeds,
-		AggregatorV3Interface priceFeedForETH
+		AggregatorV3Interface priceFeedForETH,
+		address uniswapFactory,
+		address stablecoin,
+		uint24 uniswapFee
 	) {
 		// The address must not be zero address
 		if (address(giftyToken) == address(0)) revert Gifty__error_8();
 		s_giftyToken = giftyToken;
 
-		changeRefundSettings(
-			refundGiftWithCommissionThreshold,
-			freeRefundGiftThreshold,
-			// SHOULD BE WITH 2 DECIMALS
-			giftRefundCommission
-		);
-		changeMinimalGiftPrice(minGiftPriceInUsd);
 		changePiggyBox(piggyBox);
-		addTokens(tokenForPriceFeeds, priceFeeds);
+		changeMinimalGiftPrice(minGiftPriceInUsd);
+		changeRefundSettings(refundGiftWithCommissionThreshold, freeRefundGiftThreshold, giftRefundCommission /* SHOULD BE WITH 2 DECIMALS*/);
+		changeUniswapFactory(uniswapFactory);
+		changeStablecoin(stablecoin);
+		updatePool(uniswapFee);
 		_changePriceFeedForToken(_getETHAddress(), priceFeedForETH);
 	}
 
@@ -231,7 +250,10 @@ contract GiftyController is IGiftyController, Ownable {
 		emit PiggyBoxChanged(newPiggyBox);
 	}
 
-	function addTokens(address[] memory tokens, AggregatorV3Interface[] memory priceFeeds)
+	function addTokens(
+		address[] memory tokens,
+		AggregatorV3Interface[] memory priceFeeds
+	)
 		public
 		onlyOwner
 		// The lengths of the arrays must match since each token must be assigned a price feed
@@ -281,6 +303,25 @@ contract GiftyController is IGiftyController, Ownable {
 		for (uint256 i; i < tokens.length; i++) {
 			_changePriceFeedForToken(tokens[i], priceFeeds[i]);
 		}
+	}
+
+	function changeUniswapFactory(address factory) public onlyOwner validateZeroAddress(factory) {
+		s_uniswapFactory = IUniswapV3Factory(factory);
+		emit UniswapFactoryChanged(factory);
+	}
+
+	function changeStablecoin(
+		address stablecoin
+	) public onlyOwner validateZeroAddress(stablecoin) {
+		s_stablecoin = stablecoin;
+		emit StablecoinChanged(stablecoin);
+	}
+
+	function updatePool(uint24 fee) public onlyOwner {
+		address newPool = s_uniswapFactory.getPool(address(s_giftyToken), s_stablecoin, fee);
+		if (newPool == address(0)) revert Gifty__error_21();
+
+		emit PoolUpdated(newPool);
 	}
 
 	// TODO
@@ -339,12 +380,10 @@ contract GiftyController is IGiftyController, Ownable {
 		emit TokenDeleted(BeingDeletedToken);
 	}
 
-	function _changePriceFeedForToken(address token, AggregatorV3Interface aggregatorForToken)
-		private
-	{
-		if (token == address(0) || address(aggregatorForToken) == address(0))
-			revert Gifty__error_8();
-
+	function _changePriceFeedForToken(
+		address token,
+		AggregatorV3Interface aggregatorForToken
+	) private validateZeroAddress(token) validateZeroAddress(address(aggregatorForToken)) {
 		s_priceFeeds[token] = aggregatorForToken;
 		emit PriceFeedChanged(token, address(aggregatorForToken));
 	}

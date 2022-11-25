@@ -60,6 +60,10 @@ export async function GiftTokenFixture() {
 	const initialTokens: string[] = [testToken.address];
 	const initialAggregatorsAddress: string[] = [tokenMockAggregator.address];
 
+	const uniswapFactory: string = "";
+	const stablecoin: string = "";
+	const fee: number = 3000;
+
 	// Deploy gifty main contract
 	const gifty: Gifty = await new Gifty__factory(owner).deploy(
 		giftyToken.address,
@@ -68,10 +72,12 @@ export async function GiftTokenFixture() {
 		giftRefundWithCommissionThresholdInBlocks,
 		giftRefundWithoutCommissionThresholdInBlocks,
 		refundGiftCommission,
-		initialTokens,
-		initialAggregatorsAddress,
-		ethMockAggregator.address
+		ethMockAggregator.address,
+		uniswapFactory,
+		stablecoin,
+		fee
 	);
+	await gifty.addTokens(initialTokens, initialAggregatorsAddress);
 
 	// Changing the address of the gifty in the token contract and piggyBox
 	await giftyToken.changeGiftyAddress(gifty.address);

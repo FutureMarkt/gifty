@@ -5,6 +5,7 @@ import "./GiftyController.sol";
 import "./interfaces/IGifty.sol";
 import "./utils/ReentrancyGuard.sol";
 import "./GiftyLibraries/PriceConverter.sol";
+import "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	using ExternalAccountsInteraction for address payable;
@@ -158,9 +159,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		uint256 refundGiftWithCommissionThreshold,
 		uint256 freeRefundGiftThreshold,
 		uint256 giftRefundCommission,
-		address[] memory tokenForPriceFeeds,
-		AggregatorV3Interface[] memory priceFeeds,
-		AggregatorV3Interface priceFeedForETH
+		AggregatorV3Interface priceFeedForETH,
+		address uniswapFactory,
+		address stablecoin,
+		uint24 uniswapFee
 	)
 		GiftyController(
 			giftyToken,
@@ -169,9 +171,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			refundGiftWithCommissionThreshold,
 			freeRefundGiftThreshold,
 			giftRefundCommission,
-			tokenForPriceFeeds,
-			priceFeeds,
-			priceFeedForETH
+			priceFeedForETH,
+			stablecoin,
+			uniswapFactory,
+			uniswapFee
 		)
 	{}
 
@@ -185,12 +188,10 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	 * @param receiver - Address to whom you want to send the gift
 	 * @param amount - How much do you want to give the receiver
 	 */
-	function giftETH(address receiver, uint256 amount)
-		external
-		payable
-		nonReentrant
-		validateReceiver(receiver)
-	{
+	function giftETH(
+		address receiver,
+		uint256 amount
+	) external payable nonReentrant validateReceiver(receiver) {
 		address ETH = _getETHAddress();
 		uint256 giftPriceInUSD = _calculateGiftPrice(ETH, amount);
 
@@ -200,12 +201,9 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	}
 
 	// TODO
-	function giftETHWithGFTCommission(address receiver)
-		external
-		payable
-		nonReentrant
-		validateReceiver(receiver)
-	{
+	function giftETHWithGFTCommission(
+		address receiver
+	) external payable nonReentrant validateReceiver(receiver) {
 		// address ETH = _getETHAddress();
 		// uint256 giftPriceInUSD = _calculateGiftPrice(ETH, msg.value);
 	}
@@ -238,11 +236,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 			TypeOfCommission.TOKEN
 		);
 
-		uint256 transferedAmount = _transferIn(
-			IERC20(asset),
-			msg.sender,
-			amount + chargedCommission
-		);
+		uint256 transferedAmount = _transferIn(asset, msg.sender, amount + chargedCommission);
 
 		uint256 amountToGift = transferedAmount - chargedCommission;
 
@@ -366,10 +360,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		TypeOfCommission commissionType
 	) internal returns (uint256 commissionCharged) {
 		// Get a commission interest rate for the gift.
-		(
-			uint256 commissionRate, /* uint256 commissionRateGFT */
-
-		) = getCommissionRate();
+		(uint256 commissionRate /* uint256 commissionRateGFT */, ) = getCommissionRate();
 
 		if (commissionType == TypeOfCommission.GFT) {
 			// TODO commission GFT TOKEN: 25% free
@@ -481,11 +472,7 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount, newGiftIndex);
 	}
 
-	function _sendGift(
-		TypeOfGift giftType,
-		IERC20 token,
-		uint256 amount
-	) internal {
+	function _sendGift(TypeOfGift giftType, IERC20 token, uint256 amount) internal {
 		if (giftType == TypeOfGift.FT) {
 			token.safeTransfer(msg.sender, amount);
 		} else if (giftType == TypeOfGift.ETH) {
@@ -495,16 +482,15 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 		}
 	}
 
-	function _calculateCommission(uint256 amount, uint256 commissionRate)
-		internal
-		pure
-		returns (uint256)
-	{
+	function _calculateCommission(
+		uint256 amount,
+		uint256 commissionRate
+	) internal pure returns (uint256) {
 		uint256 minimumValue = 10000;
 		if (amount < minimumValue) revert Gifty__error_2(amount, minimumValue);
 
 		uint256 decimals = 2;
-		return (amount * commissionRate) / (100 * 10**decimals);
+		return (amount * commissionRate) / (100 * 10 ** decimals);
 	}
 
 	function _calculateGiftPrice(address asset, uint256 amount) internal view returns (uint256) {
@@ -521,15 +507,41 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 	}
 
 	function _transferIn(
-		IERC20 asset,
+		address token,
 		address sender,
 		uint256 amount
 	) internal returns (uint256) {
-		uint256 assetBalanceBefore = asset.balanceOf(address(this));
-		asset.safeTransferFrom(sender, address(this), amount);
-		uint256 assetBalanceAfter = asset.balanceOf(address(this));
+		uint256 assetBalanceBefore = _getTokenBalance(token);
+		IERC20(token).safeTransferFrom(sender, address(this), amount);
+		uint256 assetBalanceAfter = _getTokenBalance(token);
 
 		return assetBalanceAfter - assetBalanceBefore;
+	}
+
+	function _getTokenBalance(address token) internal view returns (uint256) {
+		(bool success, bytes memory data) = token.staticcall(
+			abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
+		);
+
+		if (!success || data.length < 32) revert Gifty__error_19();
+		return abi.decode(data, (uint256));
+	}
+
+	function _getPriceOfExactAmountUniswapV3(
+		uint256 amount,
+		address tokenIn,
+		address tokenOut,
+		uint24 fee,
+		uint32 secondsAgo
+	) internal view returns (uint256) {
+		address pool = s_uniswapFactory.getPool(tokenIn, tokenOut, fee);
+
+		(int24 tick, ) = OracleLibrary.consult(pool, secondsAgo);
+		uint256 price = OracleLibrary.getQuoteAtTick(tick, amount.toUint128(), tokenIn, tokenOut);
+
+		if (price == 0) revert Gifty__error_22();
+
+		return price;
 	}
 
 	/* --------------------Private functions-------------------- */
