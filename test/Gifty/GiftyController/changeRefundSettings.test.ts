@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 
 describe("changeRefundSettings", function () {
 	const expectedValue: number = 100;

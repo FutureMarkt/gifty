@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { BigNumber } from "ethers";
 
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 
 import {
 	GiverContractCanNotReceiverETH,

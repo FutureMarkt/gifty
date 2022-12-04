@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 
 describe("changeMinimalGiftPrice", function () {
@@ -26,7 +26,7 @@ describe("changeMinimalGiftPrice", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		await gifty.changeMinimalGiftPrice(expectedValue);
-		const minGiftPrice: BigNumber = await gifty.getMinGiftPrice();
+		const minGiftPrice: BigNumber = await gifty.getMinimalGiftPrice();
 
 		expect(minGiftPrice).eq(expectedValue);
 	});

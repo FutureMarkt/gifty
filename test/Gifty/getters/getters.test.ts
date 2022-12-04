@@ -1,8 +1,9 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "./fixtures/GiftyFixture";
 import { ethers } from "ethers";
 import { BigNumber } from "ethers";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
+import { secondsAgo as configSecondsAgo } from "../../TestHelper";
 
 describe("Gifty | Getters", function () {
 	const giftAmount: BigNumber = ethers.utils.parseUnits("1", 17);
@@ -26,7 +27,7 @@ describe("Gifty | Getters", function () {
 				.withArgs(10, 7);
 		});
 
-		it("If offset more then array length - revert", async function () {
+		it("If number of remaining gifts is less than the number of desired gifts - revert", async function () {
 			const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 			for (let i = 1; i < 5; i++) {
@@ -137,6 +138,30 @@ describe("Gifty | Getters", function () {
 			);
 
 			expect(gifts[0].amount).eq(giftAmount.mul(2));
+		});
+	});
+
+	describe("getUniswapConfig", function () {
+		it("Return correct pool value", async function () {
+			const { gifty, uniswapPoolMock } = await loadFixture(GiftyFixture);
+			const { pool } = await gifty.getUniswapConfig();
+
+			expect(uniswapPoolMock.address).eq(pool);
+		});
+
+		it("Return correct anotherToken value", async function () {
+			const { gifty, uniswapPoolMock } = await loadFixture(GiftyFixture);
+			const { anotherTokenInPool } = await gifty.getUniswapConfig();
+			const anotherTokenFromContract = await uniswapPoolMock.token0();
+
+			expect(anotherTokenInPool).eq(anotherTokenFromContract);
+		});
+
+		it("Return correct secondsAgo value", async function () {
+			const { gifty } = await loadFixture(GiftyFixture);
+			const { secondsAgo } = await gifty.getUniswapConfig();
+
+			expect(secondsAgo).eq(configSecondsAgo);
 		});
 	});
 });

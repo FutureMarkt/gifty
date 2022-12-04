@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
 import { NonZeroAddress } from "../../TestHelper";
 
@@ -24,7 +24,7 @@ describe("Delete token", function () {
 	});
 
 	it("Delete token should delete them from allowed tokens", async function () {
-		const { gifty, giftyToken } = await loadFixture(GiftyFixture);
+		const { gifty } = await loadFixture(GiftyFixture);
 
 		// Add
 		await gifty.addTokens([sampleToken], [NonZeroAddress]);
@@ -96,7 +96,9 @@ describe("Delete token", function () {
 		}
 
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
-		expect(amountOfAllowedTokens).eq(0);
+		expect(amountOfAllowedTokens).eq(
+			1 /* Since 1 token already added in deploy time */
+		);
 	});
 
 	it("Delete many tokens - deleted exact tokens", async function () {
@@ -138,7 +140,9 @@ describe("Delete token", function () {
 		// Is length correct?
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
-		expect(amountOfAllowedTokens).eq(3);
+		expect(amountOfAllowedTokens).eq(
+			3 + 1 /* Since 1 token already added in deploy time */
+		);
 	});
 
 	it("Delete many tokens - from the middle of the array", async function () {
@@ -180,7 +184,9 @@ describe("Delete token", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			tokensExample.length - tokensToBeDeleted.length
+			tokensExample.length -
+				tokensToBeDeleted.length +
+				1 /* Since 1 token already added in deploy time */
 		);
 	});
 
@@ -226,7 +232,9 @@ describe("Delete token", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			tokensExample.length - tokensToBeDeleted.length
+			tokensExample.length -
+				tokensToBeDeleted.length +
+				1 /* Since 1 token already added in deploy time */
 		);
 	});
 
@@ -305,5 +313,11 @@ describe("Delete token", function () {
 		expect(allowedTokensAfter[2]).eq(
 			allowedTokensBefore[allowedTokensBefore.length - 1]
 		);
+	});
+
+	describe("After token deleting earned commission should be transfered to PiggyBox", function () {
+		it("Earned commission transfered to PiggyBox", async function () {
+			await loadFixture(GiftyFixture);
+		});
 	});
 });

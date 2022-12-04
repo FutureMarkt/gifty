@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { ZeroAddress, NonZeroAddress } from "../../TestHelper";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
 
@@ -91,7 +91,10 @@ describe("Add token", function () {
 
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
-		expect(amountOfAllowedTokens).eq(tokensExample.length);
+		expect(amountOfAllowedTokens).eq(
+			tokensExample.length +
+				1 /* Since 1 token already added in deploy time */
+		);
 	});
 
 	const exampleTokenAmount: number = 15;
@@ -123,7 +126,10 @@ describe("Add token", function () {
 		}
 
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
-		expect(amountOfAllowedTokens).eq(tokensExample.length);
+		expect(amountOfAllowedTokens).eq(
+			tokensExample.length +
+				1 /* Since 1 token already added in deploy time */
+		);
 	});
 
 	it("Add many tokens - assign a correct index (15 tokens)", async function () {

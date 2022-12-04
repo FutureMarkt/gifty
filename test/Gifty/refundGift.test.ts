@@ -4,7 +4,7 @@ import {
 	mine,
 	time,
 } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "./fixtures/GiftyFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 import {
 	EthAddress,
@@ -104,14 +104,16 @@ describe("Gifty | refundGift | ETH", function () {
 		});
 
 		// Get earned commission before refund
-		const earnedBefore: BigNumber = await gifty.getGiftyBalance(
+		const earnedBefore: BigNumber = await gifty.getGiftyEarnedCommission(
 			EthAddress
 		);
 
 		await gifty.refundGift(0);
 
 		// Get earned commission after refund
-		const earnedAfter: BigNumber = await gifty.getGiftyBalance(EthAddress);
+		const earnedAfter: BigNumber = await gifty.getGiftyEarnedCommission(
+			EthAddress
+		);
 
 		// Calculate delta between before and after
 		const earnedCommissionDelta: BigNumber = earnedAfter.sub(earnedBefore);
@@ -149,13 +151,15 @@ describe("Gifty | refundGift | ETH", function () {
 
 		await mine(giftRefundWithoutCommissionThresholdInBlocks + 1);
 
-		const earnedBefore: BigNumber = await gifty.getGiftyBalance(
+		const earnedBefore: BigNumber = await gifty.getGiftyEarnedCommission(
 			EthAddress
 		);
 
 		await gifty.refundGift(0);
 
-		const earnedAfter: BigNumber = await gifty.getGiftyBalance(EthAddress);
+		const earnedAfter: BigNumber = await gifty.getGiftyEarnedCommission(
+			EthAddress
+		);
 
 		expect(earnedBefore).eq(earnedAfter);
 	});

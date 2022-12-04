@@ -1,16 +1,17 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "./fixtures/GiftyFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { NonZeroAddress, ZeroAddress } from "../TestHelper";
 import { BigNumber } from "ethers";
-import { Gifty__factory } from "../../typechain-types";
 import {
 	giftRefundWithCommissionThresholdInBlocks,
 	giftRefundWithoutCommissionThresholdInBlocks,
+	minGiftPriceInUsd,
 	refundGiftCommission,
 } from "../../dataHelper";
+import { Gifty, Gifty__factory } from "../../typechain-types";
 
-describe("Gifty | Deployment configuration", function () {
+describe("Gifty | Initialize configuration", function () {
 	it("Version is equal to 1", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
@@ -47,25 +48,6 @@ describe("Gifty | Deployment configuration", function () {
 		expect(giftRefundCommission).eq(refundGiftCommission);
 	});
 
-	it("When contract constructed and giftyToken address eq 0 revert", async function () {
-		const { owner } = await loadFixture(GiftyFixture);
-
-		// Deploy gifty main contract
-		await expect(
-			new Gifty__factory(owner).deploy(
-				ZeroAddress,
-				ZeroAddress,
-				0,
-				0,
-				0,
-				0,
-				[],
-				[],
-				ZeroAddress
-			)
-		).to.be.reverted;
-	});
-
 	it("If price feed is zero address - revert", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
@@ -80,5 +62,25 @@ describe("Gifty | Deployment configuration", function () {
 		const gTokenFromContract: string = await gifty.getGiftyToken();
 
 		expect(gTokenFromContract).eq(giftyToken.address);
+	});
+
+	it("If giftyToken in initializer equal to zero address - revert", async function () {
+		const { owner, piggyBox, uniswapPoolMock } = await loadFixture(
+			GiftyFixture
+		);
+
+		const gifty: Gifty = await new Gifty__factory(owner).deploy();
+		await expect(
+			gifty.initialize(
+				ZeroAddress,
+				piggyBox.address,
+				uniswapPoolMock.address,
+				1800,
+				minGiftPriceInUsd,
+				giftRefundWithCommissionThresholdInBlocks,
+				giftRefundWithoutCommissionThresholdInBlocks,
+				refundGiftCommission
+			)
+		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
 	});
 });

@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftTokenFixture } from "../fixtures/GiftTokenFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 import {
 	OneEther,
@@ -17,7 +17,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("When a non-giver of a gift tries to refund gift - tx should be reverted", async function () {
 		const { gifty, receiver, testToken, signers } = await loadFixture(
-			GiftTokenFixture
+			GiftyFixture
 		);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
@@ -28,9 +28,7 @@ describe("Gifty | refundGift | Token", function () {
 	});
 
 	it("When a receiver of a gift tries to refund gift - tx should be reverted", async function () {
-		const { gifty, receiver, testToken } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
@@ -40,9 +38,7 @@ describe("Gifty | refundGift | Token", function () {
 	});
 
 	it("When the gift was already claimed - tx should be reverted", async function () {
-		const { gifty, receiver, testToken } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 		await gifty.connect(receiver).claimGift(0);
@@ -54,9 +50,7 @@ describe("Gifty | refundGift | Token", function () {
 	});
 
 	it("When the gift was already refunded - tx should be reverted", async function () {
-		const { gifty, receiver, testToken } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 		await gifty.refundGift(0);
@@ -69,7 +63,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("Less then threshold blocks passed - commission should be collected", async function () {
 		const { gifty, receiver, testToken, owner } = await loadFixture(
-			GiftTokenFixture
+			GiftyFixture
 		);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
@@ -90,21 +84,19 @@ describe("Gifty | refundGift | Token", function () {
 	});
 
 	it("Less then threshold blocks passed, gifty earned commission should be increased", async function () {
-		const { gifty, receiver, testToken, owner } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
 		// Get earned commission before refund
-		const earnedBefore: BigNumber = await gifty.getGiftyBalance(
+		const earnedBefore: BigNumber = await gifty.getGiftyEarnedCommission(
 			testToken.address
 		);
 
 		await gifty.refundGift(0);
 
 		// Get earned commission after refund
-		const earnedAfter: BigNumber = await gifty.getGiftyBalance(
+		const earnedAfter: BigNumber = await gifty.getGiftyEarnedCommission(
 			testToken.address
 		);
 
@@ -122,7 +114,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("Greater then free refund threshold blocks passed, 0 fee", async function () {
 		const { gifty, receiver, testToken, owner } = await loadFixture(
-			GiftTokenFixture
+			GiftyFixture
 		);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
@@ -136,21 +128,19 @@ describe("Gifty | refundGift | Token", function () {
 	});
 
 	it("Greater then free refund threshold blocks passed, not increase earned amount", async function () {
-		const { gifty, receiver, testToken } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
 		await mine(giftRefundWithoutCommissionThresholdInBlocks + 1);
 
-		const earnedBefore: BigNumber = await gifty.getGiftyBalance(
+		const earnedBefore: BigNumber = await gifty.getGiftyEarnedCommission(
 			testToken.address
 		);
 
 		await gifty.refundGift(0);
 
-		const earnedAfter: BigNumber = await gifty.getGiftyBalance(
+		const earnedAfter: BigNumber = await gifty.getGiftyEarnedCommission(
 			testToken.address
 		);
 
@@ -158,9 +148,7 @@ describe("Gifty | refundGift | Token", function () {
 	});
 
 	it("Block passed gt refund with fee and lt fee free refund should be reverted", async function () {
-		const { gifty, receiver, testToken } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 		await mine(giftRefundWithCommissionThresholdInBlocks + 1);
@@ -173,7 +161,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("Refund with fee, turnover should be reduced", async function () {
 		const { gifty, receiver, testToken, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
@@ -198,7 +186,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("Refund with fee, commission payed should be increased", async function () {
 		const { gifty, receiver, testToken, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
@@ -231,7 +219,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("After refund status should be refunded", async function () {
 		const { gifty, receiver, testToken, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
@@ -244,7 +232,7 @@ describe("Gifty | refundGift | Token", function () {
 
 	it("GiftRefunded should be emmited after refund", async function () {
 		const { gifty, receiver, testToken, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 

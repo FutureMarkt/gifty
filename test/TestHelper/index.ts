@@ -32,3 +32,6 @@ export async function getConvertedPrice(aggregator: MockV3Aggregator) {
 		return price.mul(powDiff);
 	}
 }
+
+
+export const secondsAgo: number = 1800;

@@ -8,11 +8,7 @@ interface IGifty is IGiftyController {
 
 	function giftETHWithGFTCommission(address receiver) external payable;
 
-	function giftToken(
-		address receiver,
-		address tokenToGift,
-		uint256 amount
-	) external;
+	function giftToken(address receiver, address tokenToGift, uint256 amount) external;
 
 	function giftTokenWithGFTCommission(
 		address receiver,
@@ -20,9 +16,9 @@ interface IGifty is IGiftyController {
 		uint256 amount
 	) external;
 
-	function refundGift(uint256 giftId) external;
-
 	function claimGift(uint256 giftId) external;
+
+	function refundGift(uint256 giftId) external;
 
 	function claimSurplusesETH() external;
 

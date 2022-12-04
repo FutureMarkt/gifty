@@ -108,3 +108,6 @@ error Gifty__error_21();
 
 /** @notice Returned price from Uniswap oracle equal to zero */
 error Gifty__error_22();
+
+/** @notice You are trying to add a liquidity pool where no token is GFT */
+error Gifty__error_23();
