@@ -86,6 +86,9 @@ export async function GiftyFixture() {
 		owner
 	).deploy();
 
+	const viewer: typechain.GiftyViewer =
+		await new typechain.GiftyViewer__factory(owner).deploy(gifty.address);
+
 	return {
 		signers,
 		owner,
@@ -98,5 +101,6 @@ export async function GiftyFixture() {
 		tokenMockAggregator,
 		uniswapPoolMock,
 		attacker,
+		viewer,
 	};
 }

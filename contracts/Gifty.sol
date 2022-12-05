@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-/* Interfaces */
-import {IGifty} from "./interfaces/IGifty.sol";
-
 /* Internal contracts */
 import "./GiftyController.sol";
 import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
@@ -12,7 +9,7 @@ import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
 import {PriceConverter} from "./GiftyLibraries/PriceConverter.sol";
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
-contract Gifty is IGifty, GiftyController, ReentrancyGuard {
+contract Gifty is GiftyController, ReentrancyGuard {
 	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for uint256;
 	using SafeERC20 for IERC20;
@@ -70,45 +67,6 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 	// The amount that the user overpaid when giving ETH
 	mapping(address => uint256) private s_commissionSurplusesETH;
-
-	/* --------------------Events-------------------- */
-
-	/**
-	 * @notice Emmited when giving a gift
-	 
-     * @param giver - Who gave the gift
-	 * @param receiver - Who the gift is intended for
-	 * @param giftedAsset - What was presented? ETH - address(e)
-	 * @param amount - How many giftedAssets were given
-	 * @param giftId - The index of the gift in the array of all gifts
-	 */
-	event GiftCreated(
-		address indexed giver,
-		address indexed receiver,
-		address indexed giftedAsset,
-		uint256 amount,
-		uint256 giftId
-	);
-
-	/**
-	 * @notice Emitted when a gift is received
-	 * @param giftId - The index of the gift in the array of all gifts
-	 */
-	event GiftClaimed(uint256 giftId);
-
-	/**
-	 * @notice Emmited when the user has taken the surplus of the paid ETH
-	 *
-	 * @param claimer - Who took the surplus
-	 * @param amount - How much of the surplus was taken
-	 */
-	event SurplusesClaimed(address indexed claimer, uint256 amount);
-
-	/**
-	 * @notice Emeitted when the giver has refund his gift back.
-	 * @param giftId - Index of the gift that was withdrawn
-	 */
-	event GiftRefunded(uint256 giftId);
 
 	/* --------------------Modifiers-------------------- */
 	modifier validateReceiver(address receiver) {
@@ -562,51 +520,6 @@ contract Gifty is IGifty, GiftyController, ReentrancyGuard {
 
 	function getUserInfo(address user) external view returns (UserInfo memory) {
 		return s_userInformation[user];
-	}
-
-	function getUsersReceivedGiftBatche(
-		address user,
-		uint256 offsetFromLastGift,
-		uint256 amountOfGifts
-	) external view returns (Gift[] memory) {
-		uint256[] memory currentUserReceivedGifts = s_userInformation[user].receivedGifts;
-		return _getExactGifts(currentUserReceivedGifts, offsetFromLastGift, amountOfGifts);
-	}
-
-	function getUsersGivenGiftBatche(
-		address user,
-		uint256 offsetFromLastGift,
-		uint256 amountOfGifts
-	) external view returns (Gift[] memory) {
-		uint256[] memory currentUserGivenGifts = s_userInformation[user].givenGifts;
-		return _getExactGifts(currentUserGivenGifts, offsetFromLastGift, amountOfGifts);
-	}
-
-	function _getExactGifts(
-		uint256[] memory indexesOfGifts,
-		uint256 offsetFromLastGift,
-		uint256 amountOfGifts
-	) internal view returns (Gift[] memory) {
-		// If offset gt length of the given array - revert
-		if (indexesOfGifts.length < offsetFromLastGift)
-			revert Gifty__error_17(offsetFromLastGift, indexesOfGifts.length);
-
-		// Get index of the first element
-		uint256 indexOfFirstDesiredGift = (indexesOfGifts.length - 1) - offsetFromLastGift;
-
-		// If amount of elements gt remaining elements - revert
-		if (indexOfFirstDesiredGift + 1 < amountOfGifts) revert Gifty__error_18();
-
-		// New array, which will be returned
-		Gift[] memory result = new Gift[](amountOfGifts);
-
-		// Fill the array with desired elements
-		for (uint256 i; i < amountOfGifts; i++) {
-			uint256 giftIndex = indexesOfGifts[indexOfFirstDesiredGift - i];
-			result[i] = s_allGifts[giftIndex];
-		}
-
-		return result;
 	}
 
 	function version() external pure returns (uint256) {

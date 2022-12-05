@@ -1,20 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "../interfaces/IGifty.sol";
+import "../interfaces/Gifty/exactInterfaces/IGiftyAction.sol";
 
 error GiverContractCanNotReceiverETH__balanceToLow();
 
 contract Attacker {
-	IGifty public s_target;
+	IGiftyAction public s_target;
 	uint256 public s_giftId;
 	uint256 public s_functionId;
 
-	function attack(
-		IGifty target,
-		uint256 giftId,
-		uint256 functionId
-	) public {
+	function attack(IGiftyAction target, uint256 giftId, uint256 functionId) public {
 		s_target = target;
 		s_giftId = giftId;
 		s_functionId = functionId;
@@ -28,11 +24,7 @@ contract Attacker {
 		}
 	}
 
-	function giftETH(
-		IGifty target,
-		address receiver,
-		uint256 amount
-	) external payable {
+	function giftETH(IGiftyAction target, address receiver, uint256 amount) external payable {
 		uint256 balance = address(this).balance;
 		if (balance < amount) revert GiverContractCanNotReceiverETH__balanceToLow();
 

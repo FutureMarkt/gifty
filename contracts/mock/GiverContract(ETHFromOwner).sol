@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "../interfaces/IGifty.sol";
+import "../interfaces/Gifty/exactInterfaces/IGiftyAction.sol";
 
 error GiverContractCanNotReceiverETH__canReceiveETHOnlyFromOwner();
 error GiverContractCanNotReceiverETH__balanceToLow();
 
 contract GiverContractCanNotReceiverETH {
-	IGifty private immutable s_gfity;
+	IGiftyAction private immutable s_gfity;
 	address private s_owner;
 
-	constructor(IGifty gifty) {
+	constructor(IGiftyAction gifty) {
 		s_gfity = gifty;
 	}
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-interface IGiftyController {
+interface IGiftyControllerActions {
 	function changeMinimalGiftPrice(uint256 minGiftPrice) external;
 
 	function changePiggyBox(address payable newPiggyBox) external;
