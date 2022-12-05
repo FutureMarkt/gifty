@@ -39,11 +39,11 @@ abstract contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initia
 		uint16 giftRefundCommission; // 2 bytes ----------------| The amount of commission in percent, which will be taken in case of refunding a gift with commission
 	}
 
-	// TODO write comments
+	// Oracle configuration to get the price of a GFT token in UniswapV3Pool
 	struct UniswapOracleConfig {
-		address pool;
-		address anotherTokenInPool;
-		uint32 secondsAgo;
+		address pool; // 20 bytes ----------------------| Address of the UniswapV3Pool
+		address anotherTokenInPool; // 20 bytes --------| Some token in the pool with GFT
+		uint32 secondsAgo; // 4 bytes ------------------| Seconds ago value for TWAP
 	}
 
 	// list of all allowed tokens in the Gifty project
@@ -69,7 +69,7 @@ abstract contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initia
 	// gift refund settings.
 	GiftRefundSettings internal s_giftRefundSettings;
 
-	// TODO write comments
+	// Config for UniswapV3Oracle
 	UniswapOracleConfig internal s_uniConfig;
 
 	// We save the amount of each asset the contract received as a commission.
