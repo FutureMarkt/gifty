@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { BigNumber } from "ethers";
 
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 
 import {
 	OneEther,
@@ -55,7 +55,7 @@ describe("Gifty | GiftETH", function () {
 
 			// Gifty balance (commission)
 			const ethCommissionBalance: BigNumber =
-				await gifty.getGiftyBalance(EthAddress);
+				await gifty.getGiftyEarnedCommission(EthAddress);
 
 			expect(ethCommissionBalance).eq(commissionAmount);
 		});
@@ -120,9 +120,8 @@ describe("Gifty | GiftETH", function () {
 				value: OneEtherGiftWithCommission,
 			});
 
-			const giftyEtherBalance: BigNumber = await gifty.getGiftyBalance(
-				EthAddress
-			);
+			const giftyEtherBalance: BigNumber =
+				await gifty.getGiftyEarnedCommission(EthAddress);
 
 			expect(giftyEtherBalance).eq(PercentFromEther);
 		});

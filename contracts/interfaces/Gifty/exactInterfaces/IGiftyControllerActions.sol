@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-/* --------------------ChainLink-------------------- */
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
-
-interface IGiftyController {
+interface IGiftyControllerActions {
 	function changeMinimalGiftPrice(uint256 minGiftPrice) external;
 
 	function changePiggyBox(address payable newPiggyBox) external;
 
-	function addTokens(address[] memory tokens, AggregatorV3Interface[] memory priceFeeds)
-		external;
+	function addTokens(address[] memory tokens, address[] memory priceFeeds) external;
 
 	function deleteTokens(address[] calldata tokens) external;
 
@@ -24,7 +20,7 @@ interface IGiftyController {
 
 	function changePriceFeedsForTokens(
 		address[] memory tokens,
-		AggregatorV3Interface[] memory priceFeeds
+		address[] memory priceFeeds
 	) external;
 
 	function splitCommission() external;

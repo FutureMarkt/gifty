@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { NonZeroAddress, ZeroAddress } from "../../TestHelper";
 
-describe("changePriceFeedsForTokens", function () {
+describe("GiftyController | changePriceFeedsForTokens", function () {
 	let sampleToken: string;
 
 	it("Not owner", async function () {

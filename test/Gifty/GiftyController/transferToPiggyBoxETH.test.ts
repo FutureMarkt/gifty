@@ -1,14 +1,15 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import {
 	EthAddress,
 	OneEther,
 	OneEtherGiftWithCommission,
 } from "../../TestHelper";
 import { BigNumber } from "ethers";
+import { ethAddress } from "../../../dataHelper";
 
-describe("transferToPiggyBoxETH", function () {
+describe("GiftyController | transferToPiggyBoxETH", function () {
 	const expectedValue: number = 100;
 
 	it("Not owner", async function () {
@@ -35,7 +36,7 @@ describe("transferToPiggyBoxETH", function () {
 		});
 
 		const amountToTransfer: string = (
-			await gifty.getGiftyBalance(EthAddress)
+			await gifty.getGiftyEarnedCommission(EthAddress)
 		).toString();
 
 		await expect(
@@ -53,7 +54,7 @@ describe("transferToPiggyBoxETH", function () {
 			value: OneEtherGiftWithCommission,
 		});
 
-		const balanceBefore: BigNumber = await gifty.getGiftyBalance(
+		const balanceBefore: BigNumber = await gifty.getGiftyEarnedCommission(
 			EthAddress
 		);
 
@@ -61,14 +62,14 @@ describe("transferToPiggyBoxETH", function () {
 
 		await gifty.transferToPiggyBoxETH(transferAmount);
 
-		const balanceAfter: BigNumber = await gifty.getGiftyBalance(
+		const balanceAfter: BigNumber = await gifty.getGiftyEarnedCommission(
 			EthAddress
 		);
 
 		expect(balanceAfter).eq(expectedValue);
 	});
 
-	it("To emit ETHTransferedToPiggyBox", async function () {
+	it("To emit AssetTransferedToPiggyBox", async function () {
 		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await gifty.giftETH(receiver.address, OneEther, {
@@ -76,7 +77,7 @@ describe("transferToPiggyBoxETH", function () {
 		});
 
 		await expect(gifty.transferToPiggyBoxETH(expectedValue))
-			.to.emit(gifty, "ETHTransferedToPiggyBox")
-			.withArgs(expectedValue);
+			.to.emit(gifty, "AssetTransferedToPiggyBox")
+			.withArgs(ethAddress, expectedValue);
 	});
 });

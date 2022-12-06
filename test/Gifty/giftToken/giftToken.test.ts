@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftTokenFixture } from "../fixtures/GiftTokenFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import {
 	OneEther,
 	getConvertedPrice,
@@ -14,9 +14,7 @@ describe("Gifty | giftToken", function () {
 	let tokenAddress: string = "";
 
 	it("Giver equal to receiver should be reverted", async function () {
-		const { gifty, owner, testToken } = await loadFixture(
-			GiftTokenFixture
-		);
+		const { gifty, owner, testToken } = await loadFixture(GiftyFixture);
 
 		tokenAddress = testToken.address;
 
@@ -26,7 +24,7 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("If token doesn't allowed should be reverted", async function () {
-		const { gifty, receiver } = await loadFixture(GiftTokenFixture);
+		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		const sampleToken = gifty.address;
 
@@ -38,7 +36,7 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("If token price to low should be reverted", async function () {
-		const { gifty, receiver } = await loadFixture(GiftTokenFixture);
+		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await expect(
 			gifty.giftToken(receiver.address, tokenAddress, 10000)
@@ -46,7 +44,7 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("If gift price to low should be reverted", async function () {
-		const { gifty, receiver } = await loadFixture(GiftTokenFixture);
+		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await expect(
 			gifty.giftToken(receiver.address, tokenAddress, 10000)
@@ -55,7 +53,7 @@ describe("Gifty | giftToken", function () {
 
 	it("Correct amount transfered from giver", async function () {
 		const { gifty, receiver, testToken, owner } = await loadFixture(
-			GiftTokenFixture
+			GiftyFixture
 		);
 
 		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
@@ -77,7 +75,7 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("Should be charged correct commission", async function () {
-		const { gifty, receiver } = await loadFixture(GiftTokenFixture);
+		const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 
@@ -87,13 +85,13 @@ describe("Gifty | giftToken", function () {
 			commissionRate
 		);
 
-		const balance = await gifty.getGiftyBalance(tokenAddress);
+		const balance = await gifty.getGiftyEarnedCommission(tokenAddress);
 		expect(balance).eq(commissionShouldBeCharged);
 	});
 
 	it("Total turnover in usd should be updated correctly", async function () {
 		const { gifty, receiver, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 
@@ -115,7 +113,7 @@ describe("Gifty | giftToken", function () {
 
 	it("When several gifts have been sent - the turnover increases", async function () {
 		const { gifty, receiver, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
@@ -138,7 +136,7 @@ describe("Gifty | giftToken", function () {
 
 	it("Comission payed in usd should be updated correctly", async function () {
 		const { gifty, receiver, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 
@@ -166,7 +164,7 @@ describe("Gifty | giftToken", function () {
 
 	it("When several gifts have been sent - commission payed increases", async function () {
 		const { gifty, receiver, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 
@@ -196,7 +194,7 @@ describe("Gifty | giftToken", function () {
 
 	it("Gift structure should be correct", async function () {
 		const { gifty, receiver, owner, tokenMockAggregator } =
-			await loadFixture(GiftTokenFixture);
+			await loadFixture(GiftyFixture);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 		const currentBlock: number = await ethers.provider.getBlockNumber();
@@ -233,7 +231,7 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("GiftCreated should be emmited with correct args", async function () {
-		const { gifty, receiver, owner } = await loadFixture(GiftTokenFixture);
+		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
 
 		await expect(
 			gifty.giftToken(receiver.address, tokenAddress, giftAmount)

@@ -1,9 +1,9 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { ZeroAddress } from "../../TestHelper";
 
-describe("changePiggyBox", function () {
+describe("GiftyController | changePiggyBox", function () {
 	it("Not owner", async function () {
 		const { gifty, signers } = await loadFixture(GiftyFixture);
 
