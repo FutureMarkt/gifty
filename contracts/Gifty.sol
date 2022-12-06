@@ -68,6 +68,8 @@ contract Gifty is GiftyController {
 	mapping(address => uint256) private s_commissionSurplusesETH;
 
 	/* --------------------Modifiers-------------------- */
+
+	// Check that the giver is not giving a gift to himself.
 	modifier validateReceiver(address receiver) {
 		if (receiver == msg.sender) revert Gifty__error_11();
 		_;

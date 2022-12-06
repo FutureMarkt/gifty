@@ -5,7 +5,7 @@ import { GiftyFixture } from "../../fixtures/GiftyFixture";
 describe("GiftyController | changeRefundSettings", function () {
 	const expectedValue: number = 100;
 
-	it("Not owner", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers } = await loadFixture(GiftyFixture);
 
 		await expect(

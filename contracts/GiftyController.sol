@@ -47,6 +47,25 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		uint32 secondsAgo; // 4 bytes ------------------| Seconds ago value for TWAP
 	}
 
+	struct CommissionThresholds {
+		uint64 threshold1; // 8 bytes ----------|
+		uint64 threshold2; // 8 bytes ----------|
+		uint64 threshold3; // 8 bytes ----------|
+		uint64 threshold4; // 8 bytes ----------|
+	}
+
+	struct CommissionSizes {
+		uint64 size1; // 8 bytes ----------|
+		uint64 size2; // 8 bytes ----------|
+		uint64 size3; // 8 bytes ----------|
+		uint64 size4; // 8 bytes ----------|
+	}
+
+	struct CommissionSettings {
+		CommissionThresholds thresholds; // 1 slot
+		CommissionSizes sizes; // 1 slot
+	}
+
 	// list of all allowed tokens in the Gifty project
 	address[] internal s_allowedTokens;
 
@@ -69,6 +88,9 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 	// gift refund settings.
 	GiftRefundSettings internal s_giftRefundSettings;
+
+	// Settings responsible for thresholds and charged commissions
+	CommissionSettings internal s_commissionSettings;
 
 	// Config for UniswapV3Oracle
 	UniswapOracleConfig internal s_uniConfig;
@@ -153,6 +175,48 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	}
 
 	/**
+	 * @notice Completely updates the commission settings.
+	 * @notice (Fee thresholds and amounts of fees charged)
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param thresholds - Commission taking thresholds, determine the gradation of the size of commissions.
+	 * @param sizes - Commission sizes for the corresponding threshold levels.
+	 */
+	function changeCommissionSettings(
+		CommissionThresholds memory thresholds,
+		CommissionSizes memory sizes
+	) external onlyOwner {
+		changeCommissionThresholds(thresholds);
+		changeCommissionSizes(sizes);
+	}
+
+	/**
+	 * @notice Changes the commission thresholds.
+	 * @notice Depending on the thresholds a different commission will be charged,
+	 * @notice for example: threshold1 < gift price < threshold2 - commission size1
+	 *
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param thresholds - Commission taking thresholds, determine the gradation of the size of commissions.
+	 */
+	function changeCommissionThresholds(CommissionThresholds memory thresholds) public onlyOwner {
+		s_commissionSettings.thresholds = thresholds;
+		//prettier-ignore
+		emit ComissionThresholdsChanged(thresholds.threshold1,thresholds.threshold2,thresholds.threshold3,thresholds.threshold4);
+	}
+
+	/**
+	 * @notice Changes the commission amounts for specific commission thresholds.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param sizes - Commission sizes for the corresponding threshold levels.
+	 */
+	function changeCommissionSizes(CommissionSizes memory sizes) public onlyOwner {
+		s_commissionSettings.sizes = sizes;
+		emit ComissionSizesChanged(sizes.size1, sizes.size2, sizes.size3, sizes.size4);
+	}
+
+	/**
 	 * @notice Changes the minimum price of the gift.
 	 * @notice The function is only available to the owner.
 	 *
@@ -201,9 +265,7 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 			_deleteToken(currentTokenToBeDeleted);
 
-			// TODO write tests to transfered commission (tokens)
 			// Transfer commission to PiggyBox
-
 			uint256 earnedCommission = s_giftyCommission[currentTokenToBeDeleted];
 			if (earnedCommission > 0)
 				_transferAssetCommissionToPiggyBox(currentTokenToBeDeleted, earnedCommission);
@@ -223,9 +285,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		emit PiggyBoxChanged(newPiggyBox);
 	}
 
-	// TODO implement changing comission rate, now we get comission value from the function, but we should have possibility to change values without upgrading contract
-	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
-
 	/**
 	 * @notice Transferring the earned commission of a particular token to PiggiBox
 	 * @notice The function is only available to the owner.
@@ -237,7 +296,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		address token,
 		uint256 amount
 	) external onlyOwner nonReentrant {
-		// TODO to be tested
 		_transferAssetCommissionToPiggyBox(token, amount);
 	}
 
@@ -248,7 +306,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	 * @param amount - number of ETH to be transfered
 	 */
 	function transferToPiggyBoxETH(uint256 amount) external onlyOwner nonReentrant {
-		// TODO to be tested
 		_transferAssetCommissionToPiggyBox(_getETHAddress(), amount);
 	}
 
@@ -448,5 +505,9 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 	function getUniswapConfig() external view returns (UniswapOracleConfig memory) {
 		return s_uniConfig;
+	}
+
+	function getCommissionSettings() external view returns (CommissionSettings memory) {
+		return s_commissionSettings;
 	}
 }

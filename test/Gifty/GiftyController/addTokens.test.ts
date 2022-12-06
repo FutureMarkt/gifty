@@ -7,7 +7,7 @@ import { MockToken, MockToken__factory } from "../../../typechain-types";
 let sampleToken: string;
 
 describe("GiftyController | addTokens", function () {
-	it("Not an owner can't successfully execute function", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { signers, gifty } = await loadFixture(GiftyFixture);
 
 		await expect(

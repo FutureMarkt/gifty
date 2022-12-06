@@ -10,7 +10,7 @@ import {
 } from "../../../typechain-types";
 
 describe("GiftyController | chnageUniswapConfig", function () {
-	it("Access only for the owner", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers } = await loadFixture(GiftyFixture);
 
 		await expect(

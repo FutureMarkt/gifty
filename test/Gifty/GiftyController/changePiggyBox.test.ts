@@ -4,7 +4,7 @@ import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { ZeroAddress } from "../../TestHelper";
 
 describe("GiftyController | changePiggyBox", function () {
-	it("Not owner", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers } = await loadFixture(GiftyFixture);
 
 		await expect(

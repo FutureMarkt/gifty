@@ -6,7 +6,7 @@ import { NonZeroAddress } from "../../TestHelper";
 describe("GiftyController | deleteTokenEmergency", function () {
 	let sampleToken: string;
 
-	it("Not owner", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers, giftyToken } = await loadFixture(GiftyFixture);
 
 		sampleToken = giftyToken.address;

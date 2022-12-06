@@ -9,7 +9,7 @@ import { NonZeroAddress } from "../../TestHelper";
 let sampleToken: string, listOfAllowedTokens: string[];
 
 describe("GiftyController | deleteToken", function () {
-	it("Not owner", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { gifty, giftyToken, signers } = await loadFixture(GiftyFixture);
 
 		sampleToken = giftyToken.address;
