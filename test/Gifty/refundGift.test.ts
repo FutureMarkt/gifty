@@ -1,9 +1,5 @@
 import { expect } from "chai";
-import {
-	loadFixture,
-	mine,
-	time,
-} from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 import {

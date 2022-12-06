@@ -3,7 +3,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { NonZeroAddress } from "../../TestHelper";
 
-describe("Delete token emergency", function () {
+describe("GiftyController | deleteTokenEmergency", function () {
 	let sampleToken: string;
 
 	it("Not owner", async function () {

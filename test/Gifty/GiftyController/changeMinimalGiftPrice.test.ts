@@ -3,7 +3,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 
-describe("changeMinimalGiftPrice", function () {
+describe("GiftyController | changeMinimalGiftPrice", function () {
 	const expectedValue: number = 100;
 
 	it("Not owner", async function () {

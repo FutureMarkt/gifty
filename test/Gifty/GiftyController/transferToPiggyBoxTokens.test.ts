@@ -8,7 +8,7 @@ import { getCommissionAmount } from "../../TestHelper";
 const tokenAmount: BigNumber = ethers.utils.parseEther("100");
 const tokenCommission: BigNumber = ethers.utils.parseEther("1");
 
-describe("transferToPiggyBoxTokens", function () {
+describe("GiftyController | transferToPiggyBoxTokens", function () {
 	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers, testToken } = await loadFixture(GiftyFixture);
 

@@ -2,7 +2,7 @@ import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 
-describe("changeRefundSettings", function () {
+describe("GiftyController | changeRefundSettings", function () {
 	const expectedValue: number = 100;
 
 	it("Not owner", async function () {

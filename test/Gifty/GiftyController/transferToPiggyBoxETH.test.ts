@@ -9,7 +9,7 @@ import {
 import { BigNumber } from "ethers";
 import { ethAddress } from "../../../dataHelper";
 
-describe("transferToPiggyBoxETH", function () {
+describe("GiftyController | transferToPiggyBoxETH", function () {
 	const expectedValue: number = 100;
 
 	it("Not owner", async function () {

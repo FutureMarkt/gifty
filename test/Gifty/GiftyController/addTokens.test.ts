@@ -6,7 +6,7 @@ import { MockToken, MockToken__factory } from "../../../typechain-types";
 
 let sampleToken: string;
 
-describe("Add token", function () {
+describe("GiftyController | addTokens", function () {
 	it("Not an owner can't successfully execute function", async function () {
 		const { signers, gifty } = await loadFixture(GiftyFixture);
 

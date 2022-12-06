@@ -8,7 +8,7 @@ import { NonZeroAddress } from "../../TestHelper";
 
 let sampleToken: string, listOfAllowedTokens: string[];
 
-describe("Delete token", function () {
+describe("GiftyController | deleteToken", function () {
 	it("Not owner", async function () {
 		const { gifty, giftyToken, signers } = await loadFixture(GiftyFixture);
 
