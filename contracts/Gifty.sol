@@ -3,13 +3,12 @@ pragma solidity 0.8.17;
 
 /* Internal contracts */
 import "./GiftyController.sol";
-import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
 
 /* External libraries */
 import {PriceConverter} from "./GiftyLibraries/PriceConverter.sol";
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
-contract Gifty is GiftyController, ReentrancyGuard {
+contract Gifty is GiftyController {
 	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for uint256;
 	using SafeERC20 for IERC20;
@@ -48,8 +47,8 @@ contract Gifty is GiftyController, ReentrancyGuard {
 	// Gift structure, each gift is represented by this structure
 	struct Gift {
 		address giver;          //                            Address of gift sender
-		address receiver;       // 20 bytes -----|            Address of the gift recipient
-		uint96 amountInUSD;     // 12 bytes -----|            Gift price in dollars. uint96 - In order to rest against the maximum value, the user needs to give a gift in the amount of $79_228_162_514,26...35
+		address receiver;       // 20 bytes ----------------| Address of the gift recipient
+		uint96 amountInUSD;     // 12 bytes ----------------| Gift price in dollars. uint96 - In order to rest against the maximum value, the user needs to give a gift in the amount of $79_228_162_514,26...35
 		uint256 amount;         //                            Quantitative representation of the gift
 		IERC20 asset;           // 20 bytes ----------------| The address of the gift token, if it is ETH - the address will be represented by address(e)
 		TypeOfGift giftType;    // 1 byte (uint8) ----------| Described above, enum TypeOfGift

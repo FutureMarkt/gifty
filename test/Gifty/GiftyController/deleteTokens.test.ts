@@ -1,4 +1,5 @@
 import { expect } from "chai";
+import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
@@ -315,9 +316,28 @@ describe("Delete token", function () {
 		);
 	});
 
-	describe("After token deleting earned commission should be transfered to PiggyBox", function () {
+	describe("Transfer to PiggyBox", function () {
 		it("Earned commission transfered to PiggyBox", async function () {
-			await loadFixture(GiftyFixture);
+			const { gifty, receiver, testToken, piggyBox } = await loadFixture(
+				GiftyFixture
+			);
+
+			const tokensAmount: BigNumber = ethers.utils.parseEther("100");
+			const commissionAmount: BigNumber = tokensAmount.div(100);
+
+			await gifty.giftToken(
+				receiver.address,
+				testToken.address,
+				tokensAmount
+			);
+
+			await expect(
+				gifty.deleteTokens([testToken.address])
+			).to.changeTokenBalances(
+				testToken,
+				[gifty.address, piggyBox.address],
+				["-" + commissionAmount, commissionAmount]
+			);
 		});
 	});
 });

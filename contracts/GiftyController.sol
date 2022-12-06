@@ -12,6 +12,7 @@ import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/po
 /* External contracts */
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
+import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
 
 /* Libraries */
 import {ExternalAccountsInteraction} from "./GiftyLibraries/ExternalAccountsInteraction.sol";
@@ -20,7 +21,7 @@ import {ExternalAccountsInteraction} from "./GiftyLibraries/ExternalAccountsInte
 import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-abstract contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable {
+contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, ReentrancyGuard {
 	using ExternalAccountsInteraction for address;
 	using ExternalAccountsInteraction for address payable;
 	using SafeERC20 for IERC20;
@@ -232,7 +233,10 @@ abstract contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initia
 	 * @param token - the address of the token, the earned commission in which you want to transfer
 	 * @param amount - number of tokens to be transfered
 	 */
-	function transferToPiggyBoxTokens(address token, uint256 amount) external onlyOwner {
+	function transferToPiggyBoxTokens(
+		address token,
+		uint256 amount
+	) external onlyOwner nonReentrant {
 		// TODO to be tested
 		_transferAssetCommissionToPiggyBox(token, amount);
 	}
@@ -243,7 +247,7 @@ abstract contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initia
 	 *
 	 * @param amount - number of ETH to be transfered
 	 */
-	function transferToPiggyBoxETH(uint256 amount) external onlyOwner {
+	function transferToPiggyBoxETH(uint256 amount) external onlyOwner nonReentrant {
 		// TODO to be tested
 		_transferAssetCommissionToPiggyBox(_getETHAddress(), amount);
 	}
