@@ -3,7 +3,10 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { ethers } from "ethers";
 import { BigNumber } from "ethers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { secondsAgo as configSecondsAgo } from "../../TestHelper";
+import {
+	NonZeroAddress,
+	secondsAgo as configSecondsAgo,
+} from "../../TestHelper";
 
 describe("Gifty | Getters", function () {
 	const giftAmount: BigNumber = ethers.utils.parseUnits("1", 17);
@@ -208,5 +211,13 @@ describe("Gifty | Getters", function () {
 
 			expect(secondsAgo).eq(configSecondsAgo);
 		});
+	});
+
+	it("If price feed is zero address - revert", async function () {
+		const { gifty } = await loadFixture(GiftyFixture);
+
+		expect(gifty.getPriceFeedForToken(NonZeroAddress))
+			.to.be.revertedWithCustomError(gifty, "Gifty__error_4")
+			.withArgs(NonZeroAddress);
 	});
 });
