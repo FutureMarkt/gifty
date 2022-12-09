@@ -115,7 +115,6 @@ contract Gifty is GiftyController {
 		address ETH = _getETHAddress();
 		uint256 giftPriceInUSD = _calculateGiftPrice(ETH, amount);
 
-		// _validateMinimalGiftPrice(giftPriceInUSD);
 		_chargeCommission(ETH, amount, giftPriceInUSD, TypeOfCommission.ETH);
 		_createGift(receiver, ETH, amount, giftPriceInUSD, TypeOfGift.ETH);
 	}
@@ -146,7 +145,6 @@ contract Gifty is GiftyController {
 		if (!s_tokenInfo[asset].isTokenAllowed) revert Gifty__error_16(asset);
 
 		uint256 giftPriceInUSD = _calculateGiftPrice(asset, amount);
-		// _validateMinimalGiftPrice(giftPriceInUSD);
 
 		uint256 chargedCommission = _chargeCommission(
 			asset,
@@ -482,13 +480,6 @@ contract Gifty is GiftyController {
 		return amountOut;
 	}
 
-	/* --------------------Private functions-------------------- */
-
-	// function _validateMinimalGiftPrice(uint256 giftPrice) private view {
-	// 	uint256 minimalGiftPriceUSD = s_minGiftPriceInUsd;
-	// 	if (minimalGiftPriceUSD > giftPrice) revert Gifty__error_9(giftPrice, minimalGiftPriceUSD);
-	// }
-
 	/* --------------------Getter functions-------------------- */
 
 	// TODO commission rate? Grades? Roles?
@@ -503,7 +494,7 @@ contract Gifty is GiftyController {
 
 		// price < threshold 1
 		if (settings.thresholds.t1.to18Decimals(0) > giftPriceInUSD)
-			revert Gifty__error_9(giftPriceInUSD, settings.thresholds.t1);
+			revert Gifty__error_9(giftPriceInUSD, settings.thresholds.t1.to18Decimals(0));
 		// threshold 1 < price < threshold 2
 		else if (giftPriceInUSD < settings.thresholds.t2.to18Decimals(0))
 			return (settings.commissions.l1.full, settings.commissions.l1.reduced);
