@@ -1,22 +1,9 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
+import { commissionSettings } from "../../TestHelper";
 
-describe.only("GiftyController | changeCommissionSettings", function () {
-	const newCommissionSizeSettings = {
-		size1: 10,
-		size2: 20,
-		size3: 30,
-		size4: 40,
-	};
-
-	const newThresholdsSettings = {
-		threshold1: 10,
-		threshold2: 20,
-		threshold3: 30,
-		threshold4: 40,
-	};
-
+describe("GiftyController | changeCommissionSettings", function () {
 	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers } = await loadFixture(GiftyFixture);
 
@@ -24,31 +11,67 @@ describe.only("GiftyController | changeCommissionSettings", function () {
 			gifty
 				.connect(signers[0])
 				.changeCommissionSettings(
-					newThresholdsSettings,
-					newCommissionSizeSettings
+					commissionSettings.thresholds,
+					commissionSettings.commissions
 				)
 		).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 
-	it("Successfully changed CommissionSizes", async function () {
+	it("Successfully changed commissions thresholds", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		await gifty.changeCommissionSettings(
-			newThresholdsSettings,
-			newCommissionSizeSettings
+			commissionSettings.thresholds,
+			commissionSettings.commissions
 		);
 
-		const { sizes, thresholds } = await gifty.getCommissionSettings();
+		const { thresholds: contractThresholds } =
+			await gifty.getCommissionSettings();
 
-		expect(sizes.size1).eq(newCommissionSizeSettings.size1);
-		expect(sizes.size2).eq(newCommissionSizeSettings.size2);
-		expect(sizes.size3).eq(newCommissionSizeSettings.size3);
-		expect(sizes.size4).eq(newCommissionSizeSettings.size4);
+		expect(contractThresholds.t1).eq(commissionSettings.thresholds.t1);
+		expect(contractThresholds.t2).eq(commissionSettings.thresholds.t2);
+		expect(contractThresholds.t3).eq(commissionSettings.thresholds.t3);
+		expect(contractThresholds.t4).eq(commissionSettings.thresholds.t4);
+	});
 
-		expect(thresholds.threshold1).eq(newThresholdsSettings.threshold1);
-		expect(thresholds.threshold2).eq(newThresholdsSettings.threshold2);
-		expect(thresholds.threshold3).eq(newThresholdsSettings.threshold3);
-		expect(thresholds.threshold4).eq(newThresholdsSettings.threshold4);
+	it("Successfully changed commissions amounts", async function () {
+		const { gifty } = await loadFixture(GiftyFixture);
+
+		await gifty.changeCommissionSettings(
+			commissionSettings.thresholds,
+			commissionSettings.commissions
+		);
+
+		const { commissions: contractCommissions } =
+			await gifty.getCommissionSettings();
+
+		expect(contractCommissions.l1.full).eq(
+			commissionSettings.commissions.l1.full
+		);
+		expect(contractCommissions.l1.reduced).eq(
+			commissionSettings.commissions.l1.reduced
+		);
+
+		expect(contractCommissions.l2.full).eq(
+			commissionSettings.commissions.l2.full
+		);
+		expect(contractCommissions.l2.reduced).eq(
+			commissionSettings.commissions.l2.reduced
+		);
+
+		expect(contractCommissions.l3.full).eq(
+			commissionSettings.commissions.l3.full
+		);
+		expect(contractCommissions.l3.reduced).eq(
+			commissionSettings.commissions.l3.reduced
+		);
+
+		expect(contractCommissions.l4.full).eq(
+			commissionSettings.commissions.l4.full
+		);
+		expect(contractCommissions.l4.reduced).eq(
+			commissionSettings.commissions.l4.reduced
+		);
 	});
 
 	it("ComissionSizesChanged should be emmited after setting value", async function () {
@@ -56,10 +79,10 @@ describe.only("GiftyController | changeCommissionSettings", function () {
 
 		await expect(
 			gifty.changeCommissionSettings(
-				newThresholdsSettings,
-				newCommissionSizeSettings
+				commissionSettings.thresholds,
+				commissionSettings.commissions
 			)
-		).to.emit(gifty, "ComissionSizesChanged");
+		).to.emit(gifty, "ComissionsChanged");
 	});
 
 	it("ComissionThresholdsChanged should be emmited after setting value", async function () {
@@ -67,8 +90,8 @@ describe.only("GiftyController | changeCommissionSettings", function () {
 
 		await expect(
 			gifty.changeCommissionSettings(
-				newThresholdsSettings,
-				newCommissionSizeSettings
+				commissionSettings.thresholds,
+				commissionSettings.commissions
 			)
 		).to.emit(gifty, "ComissionThresholdsChanged");
 	});

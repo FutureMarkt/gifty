@@ -1,27 +1,18 @@
 import { expect } from "chai";
 import { BigNumber } from "ethers";
-
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
+import * as testHelper from "../../TestHelper";
 
-import {
-	OneEther,
-	EthAddress,
-	PercentFromEther,
-	getCommissionAmount,
-	OneEtherGiftWithCommission,
-	getConvertedPrice,
-} from "../../TestHelper";
-
-describe("Gifty | GiftETH", function () {
+describe("Gifty | commissions", function () {
 	describe("ChargeCommission | ETH", function () {
-		const giftAmount: BigNumber = OneEther;
+		const giftAmount: BigNumber = testHelper.OneEther;
 
 		it("A simple function call, without checks", async function () {
 			const { gifty, receiver } = await loadFixture(GiftyFixture);
 
-			await gifty.giftETH(receiver.address, OneEther, {
-				value: OneEtherGiftWithCommission,
+			await gifty.giftETH(receiver.address, testHelper.OneEther, {
+				value: testHelper.OneEtherGiftWithCommission,
 			});
 		});
 
@@ -30,32 +21,43 @@ describe("Gifty | GiftETH", function () {
 
 			await expect(
 				gifty.giftETH(receiver.address, giftAmount, {
-					value: OneEtherGiftWithCommission,
+					value: testHelper.OneEtherGiftWithCommission,
 				})
-			).to.changeEtherBalance(gifty.address, OneEtherGiftWithCommission);
+			).to.changeEtherBalance(
+				gifty.address,
+				testHelper.OneEtherGiftWithCommission
+			);
 		});
 
 		it("The correct commission was taken", async function () {
-			const { gifty, receiver } = await loadFixture(GiftyFixture);
+			const { gifty, receiver, ethMockAggregator } = await loadFixture(
+				GiftyFixture
+			);
+
+			const giftPrice: BigNumber =
+				await testHelper.getPriceOfExactETHAmount(
+					ethMockAggregator,
+					giftAmount
+				);
 
 			// Get commission rate for gift
 			const [commissionRate]: BigNumber[] =
-				await gifty.getCommissionRate();
+				await gifty.getCommissionRate(giftPrice);
 
 			// Calculate Gifty commission from this gift
-			const commissionAmount: BigNumber = getCommissionAmount(
+			const commissionAmount: BigNumber = testHelper.getCommissionAmount(
 				giftAmount,
 				commissionRate
 			);
 
 			// Giving a gift
 			await gifty.giftETH(receiver.address, giftAmount, {
-				value: OneEtherGiftWithCommission,
+				value: testHelper.OneEtherGiftWithCommission,
 			});
 
 			// Gifty balance (commission)
 			const ethCommissionBalance: BigNumber =
-				await gifty.getGiftyEarnedCommission(EthAddress);
+				await gifty.getGiftyEarnedCommission(testHelper.EthAddress);
 
 			expect(ethCommissionBalance).eq(commissionAmount);
 		});
@@ -75,25 +77,32 @@ describe("Gifty | GiftETH", function () {
 
 			await expect(
 				gifty.giftETH(receiver.address, giftAmount, {
-					value: OneEther.add(1),
+					value: testHelper.OneEther.add(1),
 				})
 			).revertedWithCustomError(gifty, "Gifty__error_3");
 		});
 
 		it("If the transferred commission is gt Gifty commission, write delta - for the possibility of withdrawal", async function () {
-			const { gifty, owner, receiver } = await loadFixture(GiftyFixture);
+			const { gifty, owner, receiver, ethMockAggregator } =
+				await loadFixture(GiftyFixture);
 
 			// Imagine that the user transferred more funds than needed.
-			const bigCommission: BigNumber = OneEther;
+			const bigCommission: BigNumber = testHelper.OneEther;
 
 			const giftAmountWithBigCommission: BigNumber =
 				giftAmount.add(bigCommission);
 
-			// Get commission rate and calculate commission
-			const [commissionRate]: BigNumber[] =
-				await gifty.getCommissionRate();
+			const giftPrice: BigNumber =
+				await testHelper.getPriceOfExactETHAmount(
+					ethMockAggregator,
+					giftAmount
+				);
 
-			const commissionAmount: BigNumber = getCommissionAmount(
+			// Get commission rate for gift
+			const [commissionRate]: BigNumber[] =
+				await gifty.getCommissionRate(giftPrice);
+
+			const commissionAmount: BigNumber = testHelper.getCommissionAmount(
 				giftAmount,
 				commissionRate
 			);
@@ -114,28 +123,39 @@ describe("Gifty | GiftETH", function () {
 		});
 
 		it("Gifty's commission calculated and writen correctly", async function () {
-			const { gifty, receiver } = await loadFixture(GiftyFixture);
+			const { gifty, receiver, ethMockAggregator } = await loadFixture(
+				GiftyFixture
+			);
+
+			const giftPrice = await testHelper.getPriceOfExactETHAmount(
+				ethMockAggregator,
+				giftAmount
+			);
+
+			const [rate] = await gifty.getCommissionRate(giftPrice);
+
+			const expectedEarnedCommission: BigNumber =
+				testHelper.getCommissionAmount(giftAmount, rate);
 
 			await gifty.giftETH(receiver.address, giftAmount, {
-				value: OneEtherGiftWithCommission,
+				value: testHelper.OneEtherGiftWithCommission,
 			});
 
 			const giftyEtherBalance: BigNumber =
-				await gifty.getGiftyEarnedCommission(EthAddress);
+				await gifty.getGiftyEarnedCommission(testHelper.EthAddress);
 
-			expect(giftyEtherBalance).eq(PercentFromEther);
+			expect(expectedEarnedCommission).eq(giftyEtherBalance);
 		});
 
 		it("The total turnover of the user's funds increased in the dollar equivalent of a gift", async function () {
 			const { gifty, owner, receiver, ethMockAggregator } =
 				await loadFixture(GiftyFixture);
 
-			const ethPriceWith18Decimals: BigNumber = await getConvertedPrice(
-				ethMockAggregator
-			);
+			const ethPriceWith18Decimals: BigNumber =
+				await testHelper.getConvertedPrice(ethMockAggregator);
 
 			await gifty.giftETH(receiver.address, giftAmount, {
-				value: OneEtherGiftWithCommission,
+				value: testHelper.OneEtherGiftWithCommission,
 			});
 
 			// Get user turnover after gift
@@ -145,7 +165,7 @@ describe("Gifty | GiftETH", function () {
 			// Calculate expected turnover
 			const expectedTurnover: BigNumber = ethPriceWith18Decimals
 				.mul(giftAmount)
-				.div(OneEther);
+				.div(testHelper.OneEther);
 
 			expect(totalTurnoverInUSD).eq(expectedTurnover);
 		});
@@ -154,21 +174,26 @@ describe("Gifty | GiftETH", function () {
 			const { gifty, owner, receiver, ethMockAggregator } =
 				await loadFixture(GiftyFixture);
 
-			const ethPriceWith18Decimals: BigNumber = await getConvertedPrice(
-				ethMockAggregator
-			);
+			const ethPriceWith18Decimals: BigNumber =
+				await testHelper.getConvertedPrice(ethMockAggregator);
 
-			// Get commission rate and calculate commission
+			const giftPrice: BigNumber =
+				await testHelper.getPriceOfExactETHAmount(
+					ethMockAggregator,
+					giftAmount
+				);
+
+			// Get commission rate for gift
 			const [commissionRate]: BigNumber[] =
-				await gifty.getCommissionRate();
+				await gifty.getCommissionRate(giftPrice);
 
-			const commissionAmount: BigNumber = getCommissionAmount(
+			const commissionAmount: BigNumber = testHelper.getCommissionAmount(
 				giftAmount,
 				commissionRate
 			);
 
 			await gifty.giftETH(receiver.address, giftAmount, {
-				value: OneEtherGiftWithCommission,
+				value: testHelper.OneEtherGiftWithCommission,
 			});
 
 			const {
@@ -178,7 +203,7 @@ describe("Gifty | GiftETH", function () {
 			// Calculate expected commission payed
 			const expectedCommissionPayed: BigNumber = ethPriceWith18Decimals
 				.mul(commissionAmount)
-				.div(OneEther);
+				.div(testHelper.OneEther);
 
 			expect(commissionPayedInUSD).eq(expectedCommissionPayed);
 		});
@@ -192,7 +217,10 @@ describe("Gifty | GiftETH", function () {
 		 * but we need to provide for a situation if the commission is canceled
 		 * and so that the mathematics in the contract still remains.
 		 */
-		await gifty.changeMinimalGiftPrice(1);
+		testHelper.commissionSettings.thresholds.t1 = 0;
+		await gifty.changeCommissionThresholds(
+			testHelper.commissionSettings.thresholds
+		);
 
 		await expect(
 			gifty.giftETH(receiver.address, 9999, { value: 10100 })

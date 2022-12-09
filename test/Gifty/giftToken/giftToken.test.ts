@@ -5,6 +5,7 @@ import {
 	OneEther,
 	getConvertedPrice,
 	getCommissionAmount,
+	getPriceOfExactETHAmount,
 } from "../../TestHelper";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
@@ -52,11 +53,18 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("Correct amount transfered from giver", async function () {
-		const { gifty, receiver, testToken, owner } = await loadFixture(
-			GiftyFixture
+		const { gifty, receiver, testToken, owner, tokenMockAggregator } =
+			await loadFixture(GiftyFixture);
+
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
 		);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
 
 		const commissionAmount: BigNumber = getCommissionAmount(
 			giftAmount,
@@ -75,11 +83,22 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("Should be charged correct commission", async function () {
-		const { gifty, receiver } = await loadFixture(GiftyFixture);
+		const { gifty, receiver, tokenMockAggregator } = await loadFixture(
+			GiftyFixture
+		);
 
 		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
+		);
+
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
+
 		const commissionShouldBeCharged: BigNumber = getCommissionAmount(
 			giftAmount,
 			commissionRate
@@ -148,7 +167,16 @@ describe("Gifty | giftToken", function () {
 			tokenMockAggregator
 		);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
+		);
+
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
+
 		const commissionAmount: BigNumber = getCommissionAmount(
 			giftAmount,
 			commissionRate
@@ -174,22 +202,22 @@ describe("Gifty | giftToken", function () {
 			finInfo: { commissionPayedInUSD },
 		} = await gifty.getUserInfo(owner.address);
 
-		const convertedTokenPrice: BigNumber = await getConvertedPrice(
-			tokenMockAggregator
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
 		);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
+
 		const commissionAmount: BigNumber = getCommissionAmount(
-			giftAmount,
+			giftPrice,
 			commissionRate
 		);
 
-		// Calculate expected turnover
-		const expectedCommissionPayed: BigNumber = convertedTokenPrice
-			.mul(commissionAmount)
-			.div(OneEther);
-
-		expect(commissionPayedInUSD).eq(expectedCommissionPayed.mul(2));
+		expect(commissionPayedInUSD).eq(commissionAmount.mul(2));
 	});
 
 	it("Gift structure should be correct", async function () {

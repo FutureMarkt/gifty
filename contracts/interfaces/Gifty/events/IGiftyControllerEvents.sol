@@ -72,4 +72,29 @@ interface IGiftyControllerEvents {
 		address indexed anotherTokenInPool,
 		uint32 secondsAgo
 	);
+
+	/**
+	 * @notice Emmited when the commissionThresholds changed.
+
+	 * @param t1 - first threshold (gift price can't be less than this value)
+	 * @param t2 - second threshold (t1 < giftPrice < t2)
+	 * @param t3 - third threshold (t2 < giftPrice < t3)
+	 * @param t4 - fourth threshold (t3 < giftPrice < t4)
+	 */
+	event ComissionThresholdsChanged(uint256 t1, uint256 t2, uint256 t3, uint256 t4);
+
+	/**
+	 * @notice Emmited when the commission changed.
+	 *
+	 * @param fullLvl1 - full commission for t1 < giftPrice <t2
+	 * @param fullLvl2 - full commission for t2 < giftPrice <t3
+	 * @param fullLvl3 - full commission for t3 < giftPrice <t4
+	 * @param fullLvl4 - full commission for t4 < giftPrice
+	 */
+	event ComissionsChanged(
+		uint256 fullLvl1,
+		uint256 fullLvl2,
+		uint256 fullLvl3,
+		uint256 fullLvl4
+	);
 }

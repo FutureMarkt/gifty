@@ -3,20 +3,6 @@ pragma solidity 0.8.17;
 
 import {IGiftyControllerEvents} from "./IGiftyControllerEvents.sol";
 
-struct CommissionThresholds {
-	uint64 threshold1;
-	uint64 threshold2;
-	uint64 threshold3;
-	uint64 threshold4;
-}
-
-struct CommissionSizes {
-	uint64 size1;
-	uint64 size2;
-	uint64 size3;
-	uint64 size4;
-}
-
 interface IGiftyEvents is IGiftyControllerEvents {
 	/**
 	 * @notice Emmited when giving a gift
@@ -54,29 +40,4 @@ interface IGiftyEvents is IGiftyControllerEvents {
 	 * @param giftId - Index of the gift that was withdrawn
 	 */
 	event GiftRefunded(uint256 giftId);
-
-	/**
-	 * @notice Emmited when the commissionThresholds changed.
-	 *
-	 * @param threshold1 -
-	 * @param threshold2 -
-	 * @param threshold3 -
-	 * @param threshold4 -
-	 */
-	event ComissionThresholdsChanged(
-		uint256 threshold1,
-		uint256 threshold2,
-		uint256 threshold3,
-		uint256 threshold4
-	);
-
-	/**
-	 * @notice Emmited when the commissionSizes changed.
-	 *
-	 * @param size1 -
-	 * @param size2 -
-	 * @param size3 -
-	 * @param size4 -
-	 */
-	event ComissionSizesChanged(uint256 size1, uint256 size2, uint256 size3, uint256 size4);
 }

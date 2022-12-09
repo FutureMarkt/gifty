@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+
 import * as dataHelper from "../../dataHelper";
 import * as testHelper from "../TestHelper";
 import * as typechain from "../../typechain-types";
@@ -63,14 +64,13 @@ export async function GiftyFixture() {
 		piggyBox.address,
 		uniswapPoolMock.address,
 		testHelper.secondsAgo, // 30 min
-		dataHelper.minGiftPriceInUsd,
-		testHelper.giftRefundWithCommissionThresholdInBlocks,
-		testHelper.giftRefundWithoutCommissionThresholdInBlocks,
-		testHelper.refundGiftCommission
+		testHelper.refundParams,
+		testHelper.commissionSettings.thresholds,
+		testHelper.commissionSettings.commissions
 	);
 
 	await gifty.changePriceFeedsForTokens(
-		[dataHelper.ethAddress],
+		[testHelper.EthAddress],
 		[ethMockAggregator.address]
 	);
 

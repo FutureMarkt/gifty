@@ -4,7 +4,11 @@ import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
-import { NonZeroAddress } from "../../TestHelper";
+import {
+	getCommissionAmount,
+	getPriceOfExactETHAmount,
+	NonZeroAddress,
+} from "../../TestHelper";
 
 let sampleToken: string, listOfAllowedTokens: string[];
 
@@ -318,12 +322,15 @@ describe("GiftyController | deleteToken", function () {
 
 	describe("Transfer to PiggyBox", function () {
 		it("Earned commission transfered to PiggyBox", async function () {
-			const { gifty, receiver, testToken, piggyBox } = await loadFixture(
-				GiftyFixture
-			);
+			const {
+				gifty,
+				receiver,
+				testToken,
+				piggyBox,
+				tokenMockAggregator,
+			} = await loadFixture(GiftyFixture);
 
 			const tokensAmount: BigNumber = ethers.utils.parseEther("100");
-			const commissionAmount: BigNumber = tokensAmount.div(100);
 
 			await gifty.giftToken(
 				receiver.address,
@@ -331,12 +338,26 @@ describe("GiftyController | deleteToken", function () {
 				tokensAmount
 			);
 
+			const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+				tokenMockAggregator,
+				tokensAmount
+			);
+
+			const [rate]: BigNumber[] = await gifty.getCommissionRate(
+				giftPrice
+			);
+
+			const earnedCommission: BigNumber = getCommissionAmount(
+				tokensAmount,
+				rate
+			);
+
 			await expect(
 				gifty.deleteTokens([testToken.address])
 			).to.changeTokenBalances(
 				testToken,
 				[gifty.address, piggyBox.address],
-				["-" + commissionAmount, commissionAmount]
+				["-" + earnedCommission, earnedCommission]
 			);
 		});
 	});

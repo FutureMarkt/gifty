@@ -5,6 +5,7 @@ import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { ZeroAddress, secondsAgo } from "../TestHelper";
 import { Gifty, Gifty__factory } from "../../typechain-types";
 import * as dataHelper from "../../dataHelper";
+import { refundParams, commissionSettings } from "../TestHelper";
 
 describe("Gifty | Initialize configuration", function () {
 	it("If giftyToken in initializer equal to zero address - revert", async function () {
@@ -19,16 +20,15 @@ describe("Gifty | Initialize configuration", function () {
 				piggyBox.address,
 				uniswapPoolMock.address,
 				1800,
-				dataHelper.minGiftPriceInUsd,
-				dataHelper.giftRefundWithCommissionThresholdInBlocks,
-				dataHelper.giftRefundWithoutCommissionThresholdInBlocks,
-				dataHelper.refundGiftCommission
+				refundParams,
+				commissionSettings.thresholds,
+				commissionSettings.commissions
 			)
 		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
 	});
 
 	it("Only owner can initialize contract", async function () {
-		const { owner, piggyBox, uniswapPoolMock, signers } =
+		const { owner, piggyBox, uniswapPoolMock, signers, giftyToken } =
 			await loadFixture(GiftyFixture);
 
 		const gifty: Gifty = await new Gifty__factory(owner).deploy();
@@ -37,33 +37,30 @@ describe("Gifty | Initialize configuration", function () {
 			gifty
 				.connect(signers[0])
 				.initialize(
-					ZeroAddress,
+					giftyToken.address,
 					piggyBox.address,
 					uniswapPoolMock.address,
 					1800,
-					dataHelper.minGiftPriceInUsd,
-					dataHelper.giftRefundWithCommissionThresholdInBlocks,
-					dataHelper.giftRefundWithoutCommissionThresholdInBlocks,
-					dataHelper.refundGiftCommission
+					refundParams,
+					commissionSettings.thresholds,
+					commissionSettings.commissions
 				)
 		).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 
 	it("Initialize should be called once", async function () {
-		const { gifty, piggyBox, uniswapPoolMock } = await loadFixture(
-			GiftyFixture
-		);
+		const { gifty, piggyBox, uniswapPoolMock, giftyToken } =
+			await loadFixture(GiftyFixture);
 
 		await expect(
 			gifty.initialize(
-				ZeroAddress,
+				giftyToken.address,
 				piggyBox.address,
 				uniswapPoolMock.address,
 				1800,
-				dataHelper.minGiftPriceInUsd,
-				dataHelper.giftRefundWithCommissionThresholdInBlocks,
-				dataHelper.giftRefundWithoutCommissionThresholdInBlocks,
-				dataHelper.refundGiftCommission
+				refundParams,
+				commissionSettings.thresholds,
+				commissionSettings.commissions
 			)
 		).to.be.revertedWith("Initializable: contract is already initialized");
 	});
@@ -98,14 +95,6 @@ describe("Gifty | Initialize configuration", function () {
 		expect(secondsAgoFromContract).eq(secondsAgo);
 	});
 
-	it("minGiftPrice initialized correctly", async function () {
-		const { gifty } = await loadFixture(GiftyFixture);
-
-		const minGiftPriceFromContract: BigNumber =
-			await gifty.getMinimalGiftPrice();
-		expect(minGiftPriceFromContract).eq(dataHelper.minGiftPriceInUsd);
-	});
-
 	it("Refund with commission threshold equal to value from dataHelper", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
@@ -113,7 +102,7 @@ describe("Gifty | Initialize configuration", function () {
 			await gifty.getRefundSettings();
 
 		expect(refundGiftWithCommissionThreshold).eq(
-			dataHelper.giftRefundWithCommissionThresholdInBlocks
+			refundParams.refundGiftWithCommissionThreshold
 		);
 	});
 
@@ -122,7 +111,7 @@ describe("Gifty | Initialize configuration", function () {
 
 		const { freeRefundGiftThreshold } = await gifty.getRefundSettings();
 		expect(freeRefundGiftThreshold).eq(
-			dataHelper.giftRefundWithoutCommissionThresholdInBlocks
+			refundParams.freeRefundGiftThreshold
 		);
 	});
 
@@ -130,7 +119,7 @@ describe("Gifty | Initialize configuration", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		const { giftRefundCommission } = await gifty.getRefundSettings();
-		expect(giftRefundCommission).eq(dataHelper.refundGiftCommission);
+		expect(giftRefundCommission).eq(refundParams.giftRefundCommission);
 	});
 
 	it("Version is equal to 1", async function () {
