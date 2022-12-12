@@ -81,6 +81,7 @@ export async function GiftyFixture() {
 	await piggyBox.changeGifty(gifty.address);
 
 	await testToken.approve(gifty.address, ethers.constants.MaxUint256);
+	await giftyToken.approve(gifty.address, ethers.constants.MaxUint256);
 
 	const attacker: typechain.Attacker = await new typechain.Attacker__factory(
 		owner

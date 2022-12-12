@@ -45,44 +45,33 @@ describe("GiftyController | changeCommissionSettings", function () {
 		const { commissions: contractCommissions } =
 			await gifty.getCommissionSettings();
 
-		expect(contractCommissions.l1.full).eq(
-			commissionSettings.commissions.l1.full
+		expect(contractCommissions.full.l1).eq(
+			commissionSettings.commissions.full.l1
 		);
-		expect(contractCommissions.l1.reduced).eq(
-			commissionSettings.commissions.l1.reduced
-		);
-
-		expect(contractCommissions.l2.full).eq(
-			commissionSettings.commissions.l2.full
-		);
-		expect(contractCommissions.l2.reduced).eq(
-			commissionSettings.commissions.l2.reduced
+		expect(contractCommissions.reduced.l1).eq(
+			commissionSettings.commissions.reduced.l1
 		);
 
-		expect(contractCommissions.l3.full).eq(
-			commissionSettings.commissions.l3.full
+		expect(contractCommissions.full.l2).eq(
+			commissionSettings.commissions.full.l2
 		);
-		expect(contractCommissions.l3.reduced).eq(
-			commissionSettings.commissions.l3.reduced
+		expect(contractCommissions.reduced.l2).eq(
+			commissionSettings.commissions.reduced.l2
 		);
 
-		expect(contractCommissions.l4.full).eq(
-			commissionSettings.commissions.l4.full
+		expect(contractCommissions.full.l3).eq(
+			commissionSettings.commissions.full.l3
 		);
-		expect(contractCommissions.l4.reduced).eq(
-			commissionSettings.commissions.l4.reduced
+		expect(contractCommissions.reduced.l3).eq(
+			commissionSettings.commissions.reduced.l3
 		);
-	});
 
-	it("ComissionSizesChanged should be emmited after setting value", async function () {
-		const { gifty } = await loadFixture(GiftyFixture);
-
-		await expect(
-			gifty.changeCommissionSettings(
-				commissionSettings.thresholds,
-				commissionSettings.commissions
-			)
-		).to.emit(gifty, "ComissionsChanged");
+		expect(contractCommissions.full.l4).eq(
+			commissionSettings.commissions.full.l4
+		);
+		expect(contractCommissions.reduced.l4).eq(
+			commissionSettings.commissions.reduced.l4
+		);
 	});
 
 	it("ComissionThresholdsChanged should be emmited after setting value", async function () {
@@ -94,5 +83,27 @@ describe("GiftyController | changeCommissionSettings", function () {
 				commissionSettings.commissions
 			)
 		).to.emit(gifty, "ComissionThresholdsChanged");
+	});
+
+	it("ReducedCommissionsChanged should be emmited after setting value", async function () {
+		const { gifty } = await loadFixture(GiftyFixture);
+
+		await expect(
+			gifty.changeCommissionSettings(
+				commissionSettings.thresholds,
+				commissionSettings.commissions
+			)
+		).to.emit(gifty, "ReducedCommissionsChanged");
+	});
+
+	it("FullCommissionsChanged should be emmited after setting value", async function () {
+		const { gifty } = await loadFixture(GiftyFixture);
+
+		await expect(
+			gifty.changeCommissionSettings(
+				commissionSettings.thresholds,
+				commissionSettings.commissions
+			)
+		).to.emit(gifty, "FullCommissionsChanged");
 	});
 });

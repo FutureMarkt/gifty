@@ -56,18 +56,27 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	}
 
 	// full - full commission, which is paid when paying a commission not in GFT token.
+	// Here should be stored commission rate with 2 decimals
+	struct FullComissionRate {
+		uint32 l1; // 4 bytes ------------|
+		uint32 l2; // 4 bytes ------------|
+		uint32 l3; // 4 bytes ------------|
+		uint32 l4; // 4 bytes ------------|
+	}
+
 	// reduced - reduced commission, which is paid when paying in commission in the GFT token.
-	struct commissionLvl {
-		uint32 full; // 4 bytes ------------|
-		uint32 reduced; // 4 bytes ---------|
+	// Here should be stored commission rate with 2 decimals
+	struct ReducedComissionRate {
+		uint32 l1; // 4 bytes ------------|
+		uint32 l2; // 4 bytes ------------|
+		uint32 l3; // 4 bytes ------------|
+		uint32 l4; // 4 bytes ------------|
 	}
 
 	// The amount of commission for each commission threshold.
 	struct Commissions {
-		commissionLvl l1; // 8 bytes ------------|
-		commissionLvl l2; // 8 bytes ------------|
-		commissionLvl l3; // 8 bytes ------------|
-		commissionLvl l4; // 8 bytes ------------|
+		FullComissionRate full; // 16 bytes ------------|
+		ReducedComissionRate reduced; // 16 bytes ---|
 	}
 
 	struct CommissionSettings {
@@ -186,14 +195,13 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		Commissions memory commissions
 	) public onlyOwner {
 		changeCommissionThresholds(thresholds);
-		changeCommissionSizes(commissions);
+		changeFeeSettings(commissions);
 	}
 
 	/**
 	 * @notice Changes the commission thresholds.
 	 * @notice Depending on the thresholds a different commission will be charged,
 	 * @notice for example: threshold1 < gift price < threshold2 - commission size1
-	 *
 	 * @notice The function is only available to the owner.
 	 *
 	 * @param thresholds - Commission taking thresholds, determine the gradation of the size of commissions.
@@ -209,18 +217,48 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	}
 
 	/**
-	 * @notice Changes the commission amounts for specific commission thresholds.
+	 * @notice Changes the commission amounts (full & reduced) for specific commission thresholds.
 	 * @notice The function is only available to the owner.
 	 *
 	 * @param commissions - Commission sizes for the corresponding threshold levels.
 	 */
-	function changeCommissionSizes(Commissions memory commissions) public onlyOwner {
-		s_commissionSettings.commissions = commissions;
-		emit ComissionsChanged(
-			commissions.l1.full,
-			commissions.l2.full,
-			commissions.l3.full,
-			commissions.l4.full
+	function changeFeeSettings(Commissions memory commissions) public onlyOwner {
+		changeFullComission(commissions.full);
+		changeReducedCommission(commissions.reduced);
+	}
+
+	/**
+	 * @notice Changes the commission amounts (reduced) for specific thresholds.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param reducedRate - The number of tokens to be taken as commission at each threshold.
+	 * Note, each value must be specified with decimals equal to 2,
+	 */
+	function changeReducedCommission(ReducedComissionRate memory reducedRate) public onlyOwner {
+		s_commissionSettings.commissions.reduced = reducedRate;
+		emit ReducedCommissionsChanged(
+			reducedRate.l1,
+			reducedRate.l2,
+			reducedRate.l3,
+			reducedRate.l4
+		);
+	}
+
+	/**
+	 * @notice Changes the commission amounts (full) for specific thresholds.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param rateSettings - The commission percentage rate, for each of the thresholds.
+	 * Note, each value must be specified with decimals equal to 2,
+	 * for example: commission rate 1.25% - so the value must be 125
+	 */
+	function changeFullComission(FullComissionRate memory rateSettings) public onlyOwner {
+		s_commissionSettings.commissions.full = rateSettings;
+		emit FullCommissionsChanged(
+			rateSettings.l1,
+			rateSettings.l2,
+			rateSettings.l3,
+			rateSettings.l4
 		);
 	}
 

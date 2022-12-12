@@ -1,6 +1,6 @@
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
-import {MockV3Aggregator} from "../../typechain-types";
+import { MockV3Aggregator } from "../../typechain-types";
 
 export interface GiftRefundSettings {
 	refundGiftWithCommissionThreshold: number;
@@ -8,31 +8,35 @@ export interface GiftRefundSettings {
 	giftRefundCommission: number;
 }
 
-
-
 export interface CommissionThresholds {
-    t1: number,
-    t2: number,
-    t3: number,
-    t4: number
+	t1: number;
+	t2: number;
+	t3: number;
+	t4: number;
 }
 
-export interface commissionLvl {
-    full: number,
-    reduced: number
+export interface FullComissionRate {
+	l1: number;
+	l2: number;
+	l3: number;
+	l4: number;
+}
+
+export interface ReducedCommissionAmount {
+	l1: number;
+	l2: number;
+	l3: number;
+	l4: number;
 }
 
 export interface Commissions {
-    l1: commissionLvl,
-    l2: commissionLvl,
-    l3: commissionLvl,
-    l4: commissionLvl,
-
+	full: FullComissionRate;
+	reduced: ReducedCommissionAmount;
 }
 
 export interface CommissionSettings {
-    thresholds: CommissionThresholds,
-    commissions: Commissions
+	thresholds: CommissionThresholds;
+	commissions: Commissions;
 }
 
 export const OneEther: BigNumber = ethers.constants.WeiPerEther;
@@ -44,63 +48,51 @@ export const NonZeroAddress: string = "0x000000000000000000000000000000000000000
 export const EthAddress: string = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 
 export const mockAggregatorDecimals: number = 8;
-export const mockAggregatorAnswerETH: BigNumber = ethers.utils.parseUnits("1500",8);
-export const mockAggregatorAnswerToken: BigNumber = ethers.utils.parseUnits("50",8);
+export const mockAggregatorAnswerETH: BigNumber = ethers.utils.parseUnits("1500", 8);
+export const mockAggregatorAnswerToken: BigNumber = ethers.utils.parseUnits("50", 8);
 
 // block time == 2 sec (Matic)
 export const giftRefundWithCommissionThresholdInBlocks = 43200; // 1 day
-export const giftRefundWithoutCommissionThresholdInBlocks= 1296000; // 1 month
+export const giftRefundWithoutCommissionThresholdInBlocks = 1296000; // 1 month
 export const refundGiftCommission = 1000; // 10 with 2 decimals%
 
-
-
 export const refundParams: GiftRefundSettings = {
-    refundGiftWithCommissionThreshold: giftRefundWithCommissionThresholdInBlocks,
-    freeRefundGiftThreshold: giftRefundWithoutCommissionThresholdInBlocks,
-    giftRefundCommission: refundGiftCommission
-    }
-    
+	refundGiftWithCommissionThreshold: giftRefundWithCommissionThresholdInBlocks,
+	freeRefundGiftThreshold: giftRefundWithoutCommissionThresholdInBlocks,
+	giftRefundCommission: refundGiftCommission,
+};
 
-    
 export const commissionSettings: CommissionSettings = {
-    thresholds: {
-        t1: 15,
-        t2: 100,
-        t3: 1000,
-        t4: 10000,
-    },
+	thresholds: {
+		t1: 15,
+		t2: 100,
+		t3: 1000,
+		t4: 10000,
+	},
 
-    commissions: {
-        l1: {
-            full: 125,
-            reduced: 100
-        },
-
-        l2: {
-            full: 100,
-            reduced: 75
-        },
-
-        l3: {
-            full: 75,
-            reduced: 50
-        },
-          
-        l4: {
-            full: 50,
-            reduced: 25
-        },
-           
-    },
-}
+	commissions: {
+		full: {
+			l1: 125,
+			l2: 100,
+			l3: 75,
+			l4: 50,
+		},
+		reduced: {
+			l1: 100,
+			l2: 200,
+			l3: 300,
+			l4: 400,
+		},
+	},
+};
 
 export const secondsAgo: number = 1800;
 
-
-
-
 // Functions
-export const getCommissionAmount = (giftAmount: BigNumber,commissionRate: BigNumber) => giftAmount.mul(commissionRate).div(10000);
+export const getCommissionAmount = (
+    giftAmount: BigNumber, commissionRate: BigNumber
+) => giftAmount.mul(commissionRate).div(10000);
+
 export async function getConvertedPrice(aggregator: MockV3Aggregator) {
 	const price: BigNumber = await aggregator.latestAnswer();
 	const decimals: number = await aggregator.decimals();
@@ -113,7 +105,10 @@ export async function getConvertedPrice(aggregator: MockV3Aggregator) {
 	}
 }
 
-export async function getPriceOfExactETHAmount(aggregator: MockV3Aggregator, amount: BigNumber | number) {
-    const ethPrice: BigNumber = await getConvertedPrice(aggregator);
-    return ethPrice.mul(amount).div(OneEther);
+export async function getPriceOfExactETHAmount(
+	aggregator: MockV3Aggregator,
+	amount: BigNumber | number
+) {
+	const ethPrice: BigNumber = await getConvertedPrice(aggregator);
+	return ethPrice.mul(amount).div(OneEther);
 }

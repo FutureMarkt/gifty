@@ -84,17 +84,22 @@ interface IGiftyControllerEvents {
 	event ComissionThresholdsChanged(uint256 t1, uint256 t2, uint256 t3, uint256 t4);
 
 	/**
-	 * @notice Emmited when the commission changed.
+	 * @notice Emmited when the rate of full commission changed.
 	 *
-	 * @param fullLvl1 - full commission for t1 < giftPrice <t2
-	 * @param fullLvl2 - full commission for t2 < giftPrice <t3
-	 * @param fullLvl3 - full commission for t3 < giftPrice <t4
-	 * @param fullLvl4 - full commission for t4 < giftPrice
+	 * @param l1 - full commission for t1 < giftPrice <t2
+	 * @param l2 - full commission for t2 < giftPrice <t3
+	 * @param l3 - full commission for t3 < giftPrice <t4
+	 * @param l4 - full commission for t4 < giftPrice
 	 */
-	event ComissionsChanged(
-		uint256 fullLvl1,
-		uint256 fullLvl2,
-		uint256 fullLvl3,
-		uint256 fullLvl4
-	);
+	event FullCommissionsChanged(uint256 l1, uint256 l2, uint256 l3, uint256 l4);
+
+	/**
+	 * @notice Emmited when the rate of full commission changed.
+	 *
+	 * @param l1 - full commission for t1 < giftPrice <t2
+	 * @param l2 - full commission for t2 < giftPrice <t3
+	 * @param l3 - full commission for t3 < giftPrice <t4
+	 * @param l4 - full commission for t4 < giftPrice
+	 */
+	event ReducedCommissionsChanged(uint256 l1, uint256 l2, uint256 l3, uint256 l4);
 }

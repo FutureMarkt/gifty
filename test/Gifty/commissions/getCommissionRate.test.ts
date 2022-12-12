@@ -8,6 +8,8 @@ import { commissionSettings } from "../../TestHelper";
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 
+const parseEther: Function = ethers.utils.parseEther;
+
 describe("Gifty | getCommissionRate", function () {
 	it("If giftPrice less than t1 - revert", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
@@ -25,28 +27,32 @@ describe("Gifty | getCommissionRate", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		// Git price equal to 16 USD: t1(15 USD) < giftPrice < t2(100 USD)
-		const giftPriceInUSD: BigNumber = ethers.utils.parseEther("16");
+		const giftPriceInUSD: BigNumber = parseEther("16");
 
 		const rates: BigNumber[] = await gifty.getCommissionRate(
 			giftPriceInUSD
 		);
 
-		expect(rates[0]).eq(commissionSettings.commissions.l1.full);
-		expect(rates[1]).eq(commissionSettings.commissions.l1.reduced);
+		expect(rates[0]).eq(commissionSettings.commissions.full.l1);
+		expect(rates[1]).eq(
+			commissionSettings.commissions.reduced.l1.toString()
+		);
 	});
 
 	it("If gift price in USD between t2 and t3 => commissions are correct", async function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		// Git price equal to 16 USD: t1(15 USD) < giftPrice < t2(100 USD)
-		const giftPriceInUSD: BigNumber = ethers.utils.parseEther("101");
+		const giftPriceInUSD: BigNumber = parseEther("101");
 
 		const rates: BigNumber[] = await gifty.getCommissionRate(
 			giftPriceInUSD
 		);
 
-		expect(rates[0]).eq(commissionSettings.commissions.l2.full);
-		expect(rates[1]).eq(commissionSettings.commissions.l2.reduced);
+		expect(rates[0]).eq(commissionSettings.commissions.full.l2);
+		expect(rates[1]).eq(
+			commissionSettings.commissions.reduced.l2.toString()
+		);
 	});
 
 	it("If gift price in USD between t3 and t4 => commissions are correct", async function () {
@@ -59,8 +65,10 @@ describe("Gifty | getCommissionRate", function () {
 			giftPriceInUSD
 		);
 
-		expect(rates[0]).eq(commissionSettings.commissions.l3.full);
-		expect(rates[1]).eq(commissionSettings.commissions.l3.reduced);
+		expect(rates[0]).eq(commissionSettings.commissions.full.l3);
+		expect(rates[1]).eq(
+			commissionSettings.commissions.reduced.l3.toString()
+		);
 	});
 
 	it("If gift price in USD > t4 => commissions are correct", async function () {
@@ -73,7 +81,9 @@ describe("Gifty | getCommissionRate", function () {
 			giftPriceInUSD
 		);
 
-		expect(rates[0]).eq(commissionSettings.commissions.l4.full);
-		expect(rates[1]).eq(commissionSettings.commissions.l4.reduced);
+		expect(rates[0]).eq(commissionSettings.commissions.full.l4);
+		expect(rates[1]).eq(
+			commissionSettings.commissions.reduced.l4.toString()
+		);
 	});
 });
