@@ -8,10 +8,13 @@ import {
 	GiverContractCanNotReceiverETH,
 	GiverContractCanNotReceiverETH__factory,
 } from "../../../typechain-types";
+
 import {
 	OneEther,
 	PercentFromEther,
 	OneEtherGiftWithCommission,
+	getPriceOfExactETHAmount,
+	getCommissionAmount,
 } from "../../TestHelper";
 
 import { anyUint } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
@@ -29,16 +32,33 @@ describe("Gifty | claimSurplusesETH", function () {
 	});
 
 	it("Successful withdrawal of the overpaid amount", async function () {
-		const { gifty, owner, receiver } = await loadFixture(GiftyFixture);
+		const { gifty, owner, receiver, ethMockAggregator } =
+			await loadFixture(GiftyFixture);
+
 		const giftWithBigCommission: BigNumber =
 			OneEtherGiftWithCommission.add(PercentFromEther);
+
 		await gifty.giftETH(receiver.address, giftAmount, {
 			value: giftWithBigCommission,
 		});
 
+		const giftPriceInUSD: BigNumber = await getPriceOfExactETHAmount(
+			ethMockAggregator,
+			giftAmount
+		);
+
+		const [rate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPriceInUSD
+		);
+
+		const commissionAmount: BigNumber = getCommissionAmount(
+			giftAmount,
+			rate
+		);
+
 		await expect(gifty.claimSurplusesETH()).to.changeEtherBalance(
 			owner.address,
-			PercentFromEther
+			giftWithBigCommission.sub(commissionAmount).sub(giftAmount)
 		);
 	});
 

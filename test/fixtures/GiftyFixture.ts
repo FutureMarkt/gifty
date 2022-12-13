@@ -1,5 +1,8 @@
 import { ethers } from "hardhat";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+
+import { time } from "@nomicfoundation/hardhat-network-helpers";
+
 import * as dataHelper from "../../dataHelper";
 import * as testHelper from "../TestHelper";
 import * as typechain from "../../typechain-types";
@@ -29,6 +32,9 @@ export async function GiftyFixture() {
 	const testToken: typechain.MockToken =
 		await new typechain.MockToken__factory(owner).deploy();
 
+	const anotherTestToken: typechain.MockToken =
+		await new typechain.MockToken__factory(owner).deploy();
+
 	// Deploy gifty token
 	const giftyToken: typechain.GiftyToken =
 		await new typechain.GiftyToken__factory(owner).deploy(
@@ -37,7 +43,7 @@ export async function GiftyFixture() {
 		);
 
 	await uniswapPoolMock.initialize(testToken.address, giftyToken.address, {
-		time: (await ethers.provider.getBlock("latest")).timestamp,
+		time: await time.latest(),
 		tick: 0,
 		liquidity: "1000000000000000000",
 	});
@@ -63,14 +69,13 @@ export async function GiftyFixture() {
 		piggyBox.address,
 		uniswapPoolMock.address,
 		testHelper.secondsAgo, // 30 min
-		dataHelper.minGiftPriceInUsd,
-		testHelper.giftRefundWithCommissionThresholdInBlocks,
-		testHelper.giftRefundWithoutCommissionThresholdInBlocks,
-		testHelper.refundGiftCommission
+		testHelper.refundParams,
+		testHelper.commissionSettings.thresholds,
+		testHelper.commissionSettings.commissions
 	);
 
 	await gifty.changePriceFeedsForTokens(
-		[dataHelper.ethAddress],
+		[testHelper.EthAddress],
 		[ethMockAggregator.address]
 	);
 
@@ -81,6 +86,7 @@ export async function GiftyFixture() {
 	await piggyBox.changeGifty(gifty.address);
 
 	await testToken.approve(gifty.address, ethers.constants.MaxUint256);
+	await giftyToken.approve(gifty.address, ethers.constants.MaxUint256);
 
 	const attacker: typechain.Attacker = await new typechain.Attacker__factory(
 		owner
@@ -90,16 +96,24 @@ export async function GiftyFixture() {
 		await new typechain.GiftyViewer__factory(owner).deploy(gifty.address);
 
 	return {
-		signers,
+		// Signers
 		owner,
 		receiver,
+		signers,
+
+		// Main Gifty contracts
 		gifty,
-		piggyBox,
 		giftyToken,
+		piggyBox,
+
+		// Test contracts
 		testToken,
+		anotherTestToken,
+
 		ethMockAggregator,
 		tokenMockAggregator,
 		uniswapPoolMock,
+
 		attacker,
 		viewer,
 	};

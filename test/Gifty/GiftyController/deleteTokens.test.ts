@@ -4,19 +4,24 @@ import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
-import { NonZeroAddress } from "../../TestHelper";
+import {
+	getCommissionAmount,
+	getPriceOfExactETHAmount,
+	NonZeroAddress,
+} from "../../TestHelper";
 
 let sampleToken: string, listOfAllowedTokens: string[];
 
-describe("GiftyController | deleteToken", function () {
-	it("Not owner", async function () {
-		const { gifty, giftyToken, signers } = await loadFixture(GiftyFixture);
+describe("GiftyController | deleteTokens", function () {
+	it("Caller not the owner should be reverted", async function () {
+		const { gifty, anotherTestToken, signers } = await loadFixture(
+			GiftyFixture
+		);
 
-		sampleToken = giftyToken.address;
+		sampleToken = anotherTestToken.address;
 
 		// Add
 		await gifty.addTokens([sampleToken], [NonZeroAddress]);
-		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		// Deltete
 		await expect(
@@ -69,14 +74,18 @@ describe("GiftyController | deleteToken", function () {
 	});
 
 	it("Delete many tokens - works correctly", async function () {
-		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
+		const { owner, gifty, anotherTestToken } = await loadFixture(
+			GiftyFixture
+		);
+
+		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		const newMockToken: MockToken = await new MockToken__factory(
 			owner
 		).deploy();
 
 		const tokensExample: string[] = [
-			giftyToken.address,
+			anotherTestToken.address,
 			newMockToken.address,
 		];
 
@@ -97,16 +106,18 @@ describe("GiftyController | deleteToken", function () {
 		}
 
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
-		expect(amountOfAllowedTokens).eq(
-			1 /* Since 1 token already added in deploy time */
-		);
+		expect(amountOfAllowedTokens).eq(lengthBefore);
 	});
 
 	it("Delete many tokens - deleted exact tokens", async function () {
-		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+		const { gifty, anotherTestToken, owner } = await loadFixture(
+			GiftyFixture
+		);
+
+		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		// Create testTokens
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [anotherTestToken.address];
 
 		for (let i = 0; i < 4; i++) {
 			const testToken: MockToken = await new MockToken__factory(
@@ -122,7 +133,7 @@ describe("GiftyController | deleteToken", function () {
 
 		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
-		const listOfAllowedTokens: string[] = await gifty.getAllowedTokens();
+		listOfAllowedTokens = await gifty.getAllowedTokens();
 
 		// For example we delete 2 tokens from the middle of the array
 		const tokensToBeDeleted: string[] = listOfAllowedTokens.slice(1, 3);
@@ -142,15 +153,17 @@ describe("GiftyController | deleteToken", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			3 + 1 /* Since 1 token already added in deploy time */
+			lengthBefore
+				.add(tokensExample.length)
+				.sub(tokensToBeDeleted.length)
 		);
 	});
 
 	it("Delete many tokens - from the middle of the array", async function () {
-		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+		const { gifty, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [sampleToken];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
@@ -163,6 +176,8 @@ describe("GiftyController | deleteToken", function () {
 		const priceFeedsForTokens: string[] = new Array(
 			tokensExample.length
 		).fill(NonZeroAddress);
+
+		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
@@ -185,17 +200,17 @@ describe("GiftyController | deleteToken", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			tokensExample.length -
-				tokensToBeDeleted.length +
-				1 /* Since 1 token already added in deploy time */
+			lengthBefore
+				.add(tokensExample.length)
+				.sub(tokensToBeDeleted.length)
 		);
 	});
 
 	it("Deleting from different parts of the array", async function () {
-		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+		const { gifty, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [sampleToken];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
@@ -208,6 +223,9 @@ describe("GiftyController | deleteToken", function () {
 		const priceFeedsForTokens: string[] = new Array(
 			tokensExample.length
 		).fill(NonZeroAddress);
+
+		const tokenLengthBefore: BigNumber =
+			await gifty.getAmountOfAllowedTokens();
 
 		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
@@ -233,17 +251,17 @@ describe("GiftyController | deleteToken", function () {
 		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
 
 		expect(amountOfAllowedTokens).eq(
-			tokensExample.length -
-				tokensToBeDeleted.length +
-				1 /* Since 1 token already added in deploy time */
+			tokenLengthBefore
+				.add(tokensExample.length)
+				.sub(tokensToBeDeleted.length)
 		);
 	});
 
 	it("Deleted tokens are no longer present in the allowedTokens", async function () {
-		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+		const { gifty, owner } = await loadFixture(GiftyFixture);
 
 		// Create testTokens
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [sampleToken];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
@@ -282,10 +300,12 @@ describe("GiftyController | deleteToken", function () {
 	});
 
 	it("The token that was replaced by a place remained in the array", async function () {
-		const { gifty, giftyToken, owner } = await loadFixture(GiftyFixture);
+		const { gifty, anotherTestToken, owner } = await loadFixture(
+			GiftyFixture
+		);
 
 		// Create testTokens
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [anotherTestToken.address];
 
 		for (let i = 0; i < 20; i++) {
 			const testToken: MockToken = await new MockToken__factory(
@@ -301,10 +321,11 @@ describe("GiftyController | deleteToken", function () {
 
 		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
+		const allowedTokensBefore: string[] = (listOfAllowedTokens =
+			await gifty.getAllowedTokens());
+
 		// Delete token with index 2
 		const tokensToBeDeleted: string[] = [listOfAllowedTokens[2]];
-
-		const allowedTokensBefore: string[] = await gifty.getAllowedTokens();
 
 		// Delete
 		await gifty.deleteTokens(tokensToBeDeleted);
@@ -318,12 +339,15 @@ describe("GiftyController | deleteToken", function () {
 
 	describe("Transfer to PiggyBox", function () {
 		it("Earned commission transfered to PiggyBox", async function () {
-			const { gifty, receiver, testToken, piggyBox } = await loadFixture(
-				GiftyFixture
-			);
+			const {
+				gifty,
+				receiver,
+				testToken,
+				piggyBox,
+				tokenMockAggregator,
+			} = await loadFixture(GiftyFixture);
 
 			const tokensAmount: BigNumber = ethers.utils.parseEther("100");
-			const commissionAmount: BigNumber = tokensAmount.div(100);
 
 			await gifty.giftToken(
 				receiver.address,
@@ -331,12 +355,26 @@ describe("GiftyController | deleteToken", function () {
 				tokensAmount
 			);
 
+			const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+				tokenMockAggregator,
+				tokensAmount
+			);
+
+			const [rate]: BigNumber[] = await gifty.getCommissionRate(
+				giftPrice
+			);
+
+			const earnedCommission: BigNumber = getCommissionAmount(
+				tokensAmount,
+				rate
+			);
+
 			await expect(
 				gifty.deleteTokens([testToken.address])
 			).to.changeTokenBalances(
 				testToken,
 				[gifty.address, piggyBox.address],
-				["-" + commissionAmount, commissionAmount]
+				["-" + earnedCommission, earnedCommission]
 			);
 		});
 	});

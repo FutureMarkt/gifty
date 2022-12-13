@@ -44,12 +44,14 @@ describe("GiftyController | transferToPiggyBoxTokens", function () {
 			tokenAmount
 		);
 
+		const earnedCommission: BigNumber =
+			await gifty.getGiftyEarnedCommission(testToken.address);
 		await expect(
-			gifty.transferToPiggyBoxTokens(testToken.address, tokenCommission)
+			gifty.transferToPiggyBoxTokens(testToken.address, earnedCommission)
 		).to.changeTokenBalances(
 			testToken,
 			[gifty.address, piggyBox.address],
-			["-" + tokenCommission, tokenCommission]
+			["-" + earnedCommission, earnedCommission]
 		);
 	});
 
@@ -67,13 +69,15 @@ describe("GiftyController | transferToPiggyBoxTokens", function () {
 
 		await gifty.transferToPiggyBoxTokens(
 			testToken.address,
-			tokenCommission
+			giftyBalanceBefore
 		);
 
 		const giftyBalanceAfter: BigNumber =
 			await gifty.getGiftyEarnedCommission(testToken.address);
 
-		expect(giftyBalanceAfter.add(tokenCommission)).eq(giftyBalanceBefore);
+		expect(giftyBalanceAfter.add(giftyBalanceBefore)).eq(
+			giftyBalanceBefore
+		);
 	});
 
 	it("AssetTransferedToPiggyBox emmited after successfull withdrawal", async function () {
@@ -85,10 +89,12 @@ describe("GiftyController | transferToPiggyBoxTokens", function () {
 			tokenAmount
 		);
 
-		await expect(
-			gifty.transferToPiggyBoxTokens(testToken.address, tokenCommission)
-		)
+		const amount: BigNumber = await gifty.getGiftyEarnedCommission(
+			testToken.address
+		);
+
+		await expect(gifty.transferToPiggyBoxTokens(testToken.address, amount))
 			.to.emit(gifty, "AssetTransferedToPiggyBox")
-			.withArgs(testToken.address, tokenCommission);
+			.withArgs(testToken.address, amount);
 	});
 });

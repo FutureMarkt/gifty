@@ -1,7 +1,8 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
-
+import { BigNumber } from "ethers";
+import { ethers } from "hardhat";
 import { OneEther, getConvertedPrice } from "../TestHelper";
 
 describe("Gifty | minimumGiftPrice", function () {
@@ -24,7 +25,11 @@ describe("Gifty | minimumGiftPrice", function () {
 		);
 
 		const price = await getConvertedPrice(ethMockAggregator);
-		const minGiftPrice = await gifty.getMinimalGiftPrice();
+		const {
+			thresholds: { t1 },
+		} = await gifty.getCommissionSettings();
+
+		const minGiftPrice: BigNumber = ethers.utils.parseEther(t1.toString());
 
 		// Multiplication first to get the correct result
 

@@ -12,7 +12,7 @@ import { ethAddress } from "../../../dataHelper";
 describe("GiftyController | transferToPiggyBoxETH", function () {
 	const expectedValue: number = 100;
 
-	it("Not owner", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { gifty, signers } = await loadFixture(GiftyFixture);
 
 		await expect(

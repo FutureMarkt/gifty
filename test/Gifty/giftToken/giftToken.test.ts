@@ -5,18 +5,16 @@ import {
 	OneEther,
 	getConvertedPrice,
 	getCommissionAmount,
+	getPriceOfExactETHAmount,
 } from "../../TestHelper";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
 
 describe("Gifty | giftToken", function () {
 	const giftAmount: BigNumber = OneEther;
-	let tokenAddress: string = "";
 
 	it("Giver equal to receiver should be reverted", async function () {
 		const { gifty, owner, testToken } = await loadFixture(GiftyFixture);
-
-		tokenAddress = testToken.address;
 
 		await expect(
 			gifty.giftToken(owner.address, testToken.address, giftAmount)
@@ -35,28 +33,43 @@ describe("Gifty | giftToken", function () {
 			.withArgs(sampleToken);
 	});
 
-	it("If token price to low should be reverted", async function () {
-		const { gifty, receiver } = await loadFixture(GiftyFixture);
+	it("If gift price to low should be reverted", async function () {
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 
 		await expect(
-			gifty.giftToken(receiver.address, tokenAddress, 10000)
+			gifty.giftToken(receiver.address, testToken.address, 10000)
 		).to.be.revertedWithCustomError(gifty, "Gifty__error_9");
 	});
 
-	it("If gift price to low should be reverted", async function () {
-		const { gifty, receiver } = await loadFixture(GiftyFixture);
+	it("Correct price received from the price feed", async function () {
+		const { gifty, receiver, testToken, tokenMockAggregator } =
+			await loadFixture(GiftyFixture);
 
-		await expect(
-			gifty.giftToken(receiver.address, tokenAddress, 10000)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_9");
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
+
+		const { amountInUSD: giftPriceInUSD } = await gifty.getExactGift(0);
+
+		const priceFromPriceFeed: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
+		);
+
+		expect(giftPriceInUSD).eq(priceFromPriceFeed);
 	});
 
 	it("Correct amount transfered from giver", async function () {
-		const { gifty, receiver, testToken, owner } = await loadFixture(
-			GiftyFixture
+		const { gifty, receiver, testToken, owner, tokenMockAggregator } =
+			await loadFixture(GiftyFixture);
+
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
 		);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
 
 		const commissionAmount: BigNumber = getCommissionAmount(
 			giftAmount,
@@ -66,7 +79,7 @@ describe("Gifty | giftToken", function () {
 		const toBeTransfered: BigNumber = giftAmount.add(commissionAmount);
 
 		await expect(
-			gifty.giftToken(receiver.address, tokenAddress, giftAmount)
+			gifty.giftToken(receiver.address, testToken.address, giftAmount)
 		).to.changeTokenBalances(
 			testToken,
 			[owner.address, gifty.address],
@@ -75,25 +88,37 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("Should be charged correct commission", async function () {
-		const { gifty, receiver } = await loadFixture(GiftyFixture);
+		const { gifty, receiver, tokenMockAggregator, testToken } =
+			await loadFixture(GiftyFixture);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
+		);
+
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
+
 		const commissionShouldBeCharged: BigNumber = getCommissionAmount(
 			giftAmount,
 			commissionRate
 		);
 
-		const balance = await gifty.getGiftyEarnedCommission(tokenAddress);
+		const balance = await gifty.getGiftyEarnedCommission(
+			testToken.address
+		);
 		expect(balance).eq(commissionShouldBeCharged);
 	});
 
 	it("Total turnover in usd should be updated correctly", async function () {
-		const { gifty, receiver, owner, tokenMockAggregator } =
+		const { gifty, receiver, owner, tokenMockAggregator, testToken } =
 			await loadFixture(GiftyFixture);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
 		const {
 			finInfo: { totalTurnoverInUSD },
@@ -111,12 +136,37 @@ describe("Gifty | giftToken", function () {
 		expect(totalTurnoverInUSD).eq(expectedTurnover);
 	});
 
-	it("When several gifts have been sent - the turnover increases", async function () {
-		const { gifty, receiver, owner, tokenMockAggregator } =
+	it("Commission payed in usd should be updated correctly", async function () {
+		const { gifty, receiver, owner, tokenMockAggregator, testToken } =
 			await loadFixture(GiftyFixture);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
+
+		const {
+			finInfo: { commissionPayedInUSD },
+		} = await gifty.getUserInfo(owner.address);
+
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
+		);
+
+		const [rate]: BigNumber[] = await gifty.getCommissionRate(giftPrice);
+
+		const comissionPriceInUSD: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			getCommissionAmount(giftAmount, rate)
+		);
+
+		expect(commissionPayedInUSD).eq(comissionPriceInUSD);
+	});
+
+	it("When several gifts have been sent - the turnover increases", async function () {
+		const { gifty, receiver, owner, tokenMockAggregator, testToken } =
+			await loadFixture(GiftyFixture);
+
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
 		const {
 			finInfo: { totalTurnoverInUSD },
@@ -135,10 +185,10 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("Comission payed in usd should be updated correctly", async function () {
-		const { gifty, receiver, owner, tokenMockAggregator } =
+		const { gifty, receiver, owner, tokenMockAggregator, testToken } =
 			await loadFixture(GiftyFixture);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
 		const {
 			finInfo: { commissionPayedInUSD },
@@ -148,7 +198,16 @@ describe("Gifty | giftToken", function () {
 			tokenMockAggregator
 		);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
+		);
+
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
+
 		const commissionAmount: BigNumber = getCommissionAmount(
 			giftAmount,
 			commissionRate
@@ -163,40 +222,49 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("When several gifts have been sent - commission payed increases", async function () {
-		const { gifty, receiver, owner, tokenMockAggregator } =
+		const { gifty, receiver, owner, tokenMockAggregator, testToken } =
 			await loadFixture(GiftyFixture);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 
 		const {
 			finInfo: { commissionPayedInUSD },
 		} = await gifty.getUserInfo(owner.address);
 
-		const convertedTokenPrice: BigNumber = await getConvertedPrice(
-			tokenMockAggregator
+		const giftPrice: BigNumber = await getPriceOfExactETHAmount(
+			tokenMockAggregator,
+			giftAmount
 		);
 
-		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate();
+		// Get commission rate for gift
+		const [commissionRate]: BigNumber[] = await gifty.getCommissionRate(
+			giftPrice
+		);
+
 		const commissionAmount: BigNumber = getCommissionAmount(
-			giftAmount,
+			giftPrice,
 			commissionRate
 		);
 
-		// Calculate expected turnover
-		const expectedCommissionPayed: BigNumber = convertedTokenPrice
-			.mul(commissionAmount)
-			.div(OneEther);
+		expect(commissionPayedInUSD).eq(commissionAmount.mul(2));
+	});
 
-		expect(commissionPayedInUSD).eq(expectedCommissionPayed.mul(2));
+	it("Gift amount should be correct specified", async function () {
+		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
+
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
+
+		const { amount } = await gifty.getExactGift(0);
+		expect(amount).eq(giftAmount);
 	});
 
 	it("Gift structure should be correct", async function () {
-		const { gifty, receiver, owner, tokenMockAggregator } =
+		const { gifty, receiver, owner, tokenMockAggregator, testToken } =
 			await loadFixture(GiftyFixture);
 
-		await gifty.giftToken(receiver.address, tokenAddress, giftAmount);
+		await gifty.giftToken(receiver.address, testToken.address, giftAmount);
 		const currentBlock: number = await ethers.provider.getBlockNumber();
 		const currentTimeStamp: number = (
 			await ethers.provider.getBlock(currentBlock)
@@ -217,7 +285,7 @@ describe("Gifty | giftToken", function () {
 			receiver.address,
 			giftPrice,
 			giftAmount,
-			tokenAddress,
+			testToken.address,
 			2 /* Token */,
 			currentBlock,
 			currentTimeStamp,
@@ -231,16 +299,18 @@ describe("Gifty | giftToken", function () {
 	});
 
 	it("GiftCreated should be emmited with correct args", async function () {
-		const { gifty, receiver, owner } = await loadFixture(GiftyFixture);
+		const { gifty, receiver, owner, testToken } = await loadFixture(
+			GiftyFixture
+		);
 
 		await expect(
-			gifty.giftToken(receiver.address, tokenAddress, giftAmount)
+			gifty.giftToken(receiver.address, testToken.address, giftAmount)
 		)
 			.to.emit(gifty, "GiftCreated")
 			.withArgs(
 				owner.address,
 				receiver.address,
-				tokenAddress,
+				testToken.address,
 				giftAmount,
 				0 // first gift
 			);

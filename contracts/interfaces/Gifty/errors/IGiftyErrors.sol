@@ -112,4 +112,7 @@ interface IGiftyErrors {
 
 	/** @notice You are trying to add a liquidity pool where no token is GFT */
 	error Gifty__error_23();
+
+	/** @notice You are trying to add a token that has already been added to the platform. */
+	error Gifty__error_24();
 }

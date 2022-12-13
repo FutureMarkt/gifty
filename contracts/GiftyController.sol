@@ -47,6 +47,43 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		uint32 secondsAgo; // 4 bytes ------------------| Seconds ago value for TWAP
 	}
 
+	// Commission thresholds, are used to gradate commission with increasing gift prices.
+	struct CommissionThresholds {
+		uint64 t1; // 8 bytes ----------|
+		uint64 t2; // 8 bytes ----------|
+		uint64 t3; // 8 bytes ----------|
+		uint64 t4; // 8 bytes ----------|
+	}
+
+	// full - full commission, which is paid when paying a commission not in GFT token.
+	// Here should be stored commission rate with 2 decimals
+	struct FullComissionRate {
+		uint32 l1; // 4 bytes ------------|
+		uint32 l2; // 4 bytes ------------|
+		uint32 l3; // 4 bytes ------------|
+		uint32 l4; // 4 bytes ------------|
+	}
+
+	// reduced - reduced commission, which is paid when paying in commission in the GFT token.
+	// Here should be stored commission rate with 2 decimals
+	struct ReducedComissionRate {
+		uint32 l1; // 4 bytes ------------|
+		uint32 l2; // 4 bytes ------------|
+		uint32 l3; // 4 bytes ------------|
+		uint32 l4; // 4 bytes ------------|
+	}
+
+	// The amount of commission for each commission threshold.
+	struct Commissions {
+		FullComissionRate full; // 16 bytes ------------|
+		ReducedComissionRate reduced; // 16 bytes ---|
+	}
+
+	struct CommissionSettings {
+		CommissionThresholds thresholds; // 1 slot
+		Commissions commissions; // 1 slot
+	}
+
 	// list of all allowed tokens in the Gifty project
 	address[] internal s_allowedTokens;
 
@@ -64,11 +101,11 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	// each token has its own contract for displaying the price of tokens in relation to the USD.
 	mapping(address => AggregatorV3Interface) internal s_priceFeeds;
 
-	// minimum gift price in USD
-	uint96 internal s_minGiftPriceInUsd;
-
 	// gift refund settings.
 	GiftRefundSettings internal s_giftRefundSettings;
+
+	// Settings responsible for thresholds and charged commissions
+	CommissionSettings internal s_commissionSettings;
 
 	// Config for UniswapV3Oracle
 	UniswapOracleConfig internal s_uniConfig;
@@ -105,18 +142,19 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		address payable piggyBox,
         address uniswapV3Pool,
         uint32 secondsAgo,
-		uint256 minGiftPriceInUsd,
-		uint256 refundGiftWithCommissionThreshold,
-		uint256 freeRefundGiftThreshold,
-		uint256 giftRefundCommission
+        GiftRefundSettings memory refundSettings,
+        CommissionThresholds memory thresholds,
+		Commissions memory commissions
+
 	) internal onlyInitializing notZeroAddress(giftyToken) {
 		s_giftyToken = giftyToken;
 		emit GiftyTokenChanged(giftyToken);
 
 		changePiggyBox(piggyBox);
         changeUniswapConfig(uniswapV3Pool, secondsAgo);
-		changeMinimalGiftPrice(minGiftPriceInUsd);
-		changeRefundSettings(refundGiftWithCommissionThreshold, freeRefundGiftThreshold, giftRefundCommission /* SHOULD BE WITH 2 DECIMALS*/);
+		changeRefundSettings(refundSettings /* giftRefundCommission SHOULD BE WITH 2 DECIMALS*/);
+        changeCommissionSettings(thresholds, commissions);
+        _addToken(giftyToken);
 	}
 
 	/**
@@ -124,45 +162,105 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	 * @notice The function is only available to the owner.
 	 * @notice all given args should be a non-zero
 	 *
-	 * @param refundGiftWithCommissionThreshold - New number of blocks after the gift is given, when the giver can refund the gift with commission.
-	 * @param freeRefundGiftThreshold - New number of blocks after which the giver can refund the gift for free.
-	 * @param giftRefundCommission - New amount of commission in percent, which will be taken in case of refunding a gift with commission
+	 * @param refundSettings - Gift refund settings, includes:
+	 *      refundGiftWithCommissionThreshold - New number of blocks after the gift is given, when the giver can refund the gift with commission.
+	 *      freeRefundGiftThreshold - New number of blocks after which the giver can refund the gift for free.
+	 *      giftRefundCommission - New amount of commission in percent, which will be taken in case of refunding a gift with commission
 	 */
-	function changeRefundSettings(
-		uint256 refundGiftWithCommissionThreshold,
-		uint256 freeRefundGiftThreshold,
-		uint256 giftRefundCommission
-	) public onlyOwner {
+	function changeRefundSettings(GiftRefundSettings memory refundSettings) public onlyOwner {
 		if (
-			refundGiftWithCommissionThreshold == 0 ||
-			freeRefundGiftThreshold == 0 ||
-			giftRefundCommission == 0
+			refundSettings.refundGiftWithCommissionThreshold == 0 ||
+			refundSettings.freeRefundGiftThreshold == 0 ||
+			refundSettings.giftRefundCommission == 0
 		) revert Gifty__error_8();
 
-		s_giftRefundSettings = GiftRefundSettings(
-			refundGiftWithCommissionThreshold.toUint120(),
-			freeRefundGiftThreshold.toUint120(),
-			giftRefundCommission.toUint16()
-		);
+		s_giftRefundSettings = refundSettings;
 
 		emit RefundSettingsChanged(
-			refundGiftWithCommissionThreshold,
-			freeRefundGiftThreshold,
-			giftRefundCommission
+			refundSettings.refundGiftWithCommissionThreshold,
+			refundSettings.freeRefundGiftThreshold,
+			refundSettings.giftRefundCommission
 		);
 	}
 
 	/**
-	 * @notice Changes the minimum price of the gift.
+	 * @notice Completely updates the commission settings.
+	 * @notice (Fee thresholds and amounts of fees charged)
 	 * @notice The function is only available to the owner.
 	 *
-	 * @param minGiftPrice - new minimal gift price.
+	 * @param thresholds - Commission taking thresholds, determine the gradation of the size of commissions.
+	 * @param commissions - Commission sizes for the corresponding threshold levels.
 	 */
-	function changeMinimalGiftPrice(uint256 minGiftPrice) public onlyOwner {
-		if (minGiftPrice == 0) revert Gifty__error_8();
+	function changeCommissionSettings(
+		CommissionThresholds memory thresholds,
+		Commissions memory commissions
+	) public onlyOwner {
+		changeCommissionThresholds(thresholds);
+		changeFeeSettings(commissions);
+	}
 
-		s_minGiftPriceInUsd = minGiftPrice.toUint96();
-		emit MinimumGiftPriceChanged(minGiftPrice);
+	/**
+	 * @notice Changes the commission thresholds.
+	 * @notice Depending on the thresholds a different commission will be charged,
+	 * @notice for example: threshold1 < gift price < threshold2 - commission size1
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param thresholds - Commission taking thresholds, determine the gradation of the size of commissions.
+	 */
+	function changeCommissionThresholds(CommissionThresholds memory thresholds) public onlyOwner {
+		s_commissionSettings.thresholds = thresholds;
+		emit ComissionThresholdsChanged(
+			thresholds.t1,
+			thresholds.t2,
+			thresholds.t3,
+			thresholds.t4
+		);
+	}
+
+	/**
+	 * @notice Changes the commission amounts (full & reduced) for specific commission thresholds.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param commissions - Commission sizes for the corresponding threshold levels.
+	 */
+	function changeFeeSettings(Commissions memory commissions) public onlyOwner {
+		changeFullComission(commissions.full);
+		changeReducedCommission(commissions.reduced);
+	}
+
+	/**
+	 * @notice Changes the commission amounts (reduced) for specific thresholds.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param reducedRate - The number of tokens to be taken as commission at each threshold.
+	 * Note, each value must be specified with decimals equal to 2,
+	 */
+	function changeReducedCommission(ReducedComissionRate memory reducedRate) public onlyOwner {
+		s_commissionSettings.commissions.reduced = reducedRate;
+		emit ReducedCommissionsChanged(
+			reducedRate.l1,
+			reducedRate.l2,
+			reducedRate.l3,
+			reducedRate.l4
+		);
+	}
+
+	/**
+	 * @notice Changes the commission amounts (full) for specific thresholds.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param rateSettings - The commission percentage rate, for each of the thresholds.
+	 * Note, each value must be specified with decimals equal to 2,
+	 * for example: commission rate 1.25% - so the value must be 125
+	 */
+	function changeFullComission(FullComissionRate memory rateSettings) public onlyOwner {
+		s_commissionSettings.commissions.full = rateSettings;
+		emit FullCommissionsChanged(
+			rateSettings.l1,
+			rateSettings.l2,
+			rateSettings.l3,
+			rateSettings.l4
+		);
 	}
 
 	/**
@@ -201,9 +299,7 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 			_deleteToken(currentTokenToBeDeleted);
 
-			// TODO write tests to transfered commission (tokens)
 			// Transfer commission to PiggyBox
-
 			uint256 earnedCommission = s_giftyCommission[currentTokenToBeDeleted];
 			if (earnedCommission > 0)
 				_transferAssetCommissionToPiggyBox(currentTokenToBeDeleted, earnedCommission);
@@ -223,9 +319,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		emit PiggyBoxChanged(newPiggyBox);
 	}
 
-	// TODO implement changing comission rate, now we get comission value from the function, but we should have possibility to change values without upgrading contract
-	function changeCommissionRate(uint256 newCommissionRate) external onlyOwner {}
-
 	/**
 	 * @notice Transferring the earned commission of a particular token to PiggiBox
 	 * @notice The function is only available to the owner.
@@ -237,7 +330,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		address token,
 		uint256 amount
 	) external onlyOwner nonReentrant {
-		// TODO to be tested
 		_transferAssetCommissionToPiggyBox(token, amount);
 	}
 
@@ -248,7 +340,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	 * @param amount - number of ETH to be transfered
 	 */
 	function transferToPiggyBoxETH(uint256 amount) external onlyOwner nonReentrant {
-		// TODO to be tested
 		_transferAssetCommissionToPiggyBox(_getETHAddress(), amount);
 	}
 
@@ -327,6 +418,9 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 	/* --------------------Private functions-------------------- */
 	function _addToken(address token) private {
+		// Token already exist at Gifty platform
+		if (s_tokenInfo[token].isTokenAllowed) revert Gifty__error_24();
+
 		// Checking whether the address which are trying to add is a contract?
 		if (!token.isContract()) revert Gifty__error_0(token);
 
@@ -422,10 +516,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		return s_tokenInfo[token];
 	}
 
-	function getMinimalGiftPrice() external view returns (uint256) {
-		return s_minGiftPriceInUsd;
-	}
-
 	function getRefundSettings() external view returns (GiftRefundSettings memory) {
 		return s_giftRefundSettings;
 	}
@@ -448,5 +538,9 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 	function getUniswapConfig() external view returns (UniswapOracleConfig memory) {
 		return s_uniConfig;
+	}
+
+	function getCommissionSettings() external view returns (CommissionSettings memory) {
+		return s_commissionSettings;
 	}
 }
