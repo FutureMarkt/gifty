@@ -10,6 +10,14 @@ const config: HardhatUserConfig = {
 		hardhat: {
 			chainId: 31337,
 		},
+
+		goerli: {
+			url:
+				"https://eth-goerli.g.alchemy.com/v2/" +
+				process.env.GOERLI_API_KEY,
+			accounts: [process.env.PRIVATE_KEY_GOERLI as string],
+			chainId: 5,
+		},
 	},
 
 	solidity: {

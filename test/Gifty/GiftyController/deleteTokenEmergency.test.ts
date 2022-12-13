@@ -7,9 +7,11 @@ describe("GiftyController | deleteTokenEmergency", function () {
 	let sampleToken: string;
 
 	it("Caller not the owner should be reverted", async function () {
-		const { gifty, signers, giftyToken } = await loadFixture(GiftyFixture);
+		const { gifty, signers, anotherTestToken } = await loadFixture(
+			GiftyFixture
+		);
 
-		sampleToken = giftyToken.address;
+		sampleToken = anotherTestToken.address;
 		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 
 		await expect(

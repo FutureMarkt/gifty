@@ -3,6 +3,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { ZeroAddress, NonZeroAddress } from "../../TestHelper";
 import { MockToken, MockToken__factory } from "../../../typechain-types";
+import { BigNumber } from "ethers";
 
 let sampleToken: string;
 
@@ -26,14 +27,24 @@ describe("GiftyController | addTokens", function () {
 	});
 
 	it("After successfully adding the token, the status should be true", async function () {
-		const { gifty, giftyToken } = await loadFixture(GiftyFixture);
+		const { gifty, anotherTestToken } = await loadFixture(GiftyFixture);
 
-		sampleToken = giftyToken.address;
+		sampleToken = anotherTestToken.address;
 
 		await gifty.addTokens([sampleToken], [NonZeroAddress]);
 		const { isTokenAllowed } = await gifty.getTokenInfo(sampleToken);
 
 		expect(isTokenAllowed).true;
+	});
+
+	it("Adding a token that has already been added must be reverted", async function () {
+		const { gifty, giftyToken } = await loadFixture(GiftyFixture);
+
+		await gifty.addTokens([sampleToken], [NonZeroAddress]);
+
+		await expect(
+			gifty.addTokens([sampleToken], [NonZeroAddress])
+		).to.be.revertedWithCustomError(gifty, "Gifty__error_24");
 	});
 
 	it("After successfully adding the token, amount of allowed tokens should be increased", async function () {
@@ -64,14 +75,15 @@ describe("GiftyController | addTokens", function () {
 	});
 
 	it("Add many tokens - works correctly (2 tokens)", async function () {
-		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
+		const { owner, gifty, giftyToken, anotherTestToken } =
+			await loadFixture(GiftyFixture);
 
 		const newMockToken: MockToken = await new MockToken__factory(
 			owner
 		).deploy();
 
 		const tokensExample: string[] = [
-			giftyToken.address,
+			anotherTestToken.address,
 			newMockToken.address,
 		];
 
@@ -79,6 +91,8 @@ describe("GiftyController | addTokens", function () {
 		const priceFeedsForTokens: string[] = new Array(
 			tokensExample.length
 		).fill(NonZeroAddress);
+
+		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
 
 		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
@@ -89,20 +103,19 @@ describe("GiftyController | addTokens", function () {
 			expect(isTokenAllowed).true;
 		}
 
-		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
+		const lengthAfter = await gifty.getAmountOfAllowedTokens();
 
-		expect(amountOfAllowedTokens).eq(
-			tokensExample.length +
-				1 /* Since 1 token already added in deploy time */
-		);
+		expect(lengthAfter.sub(lengthBefore)).eq(tokensExample.length);
 	});
 
 	const exampleTokenAmount: number = 15;
 
 	it("Add many tokens - works correctly (15 tokens)", async function () {
-		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
+		const { owner, gifty, anotherTestToken } = await loadFixture(
+			GiftyFixture
+		);
 
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [anotherTestToken.address];
 
 		for (let i = 0; i < exampleTokenAmount; i++) {
 			const newMockToken: MockToken = await new MockToken__factory(
@@ -116,6 +129,8 @@ describe("GiftyController | addTokens", function () {
 			tokensExample.length
 		).fill(NonZeroAddress);
 
+		const lengthBefore: BigNumber = await gifty.getAmountOfAllowedTokens();
+
 		await gifty.addTokens(tokensExample, priceFeedsForTokens);
 
 		for (let i = 0; i < tokensExample.length; i++) {
@@ -125,17 +140,15 @@ describe("GiftyController | addTokens", function () {
 			expect(isTokenAllowed).true;
 		}
 
-		const amountOfAllowedTokens = await gifty.getAmountOfAllowedTokens();
-		expect(amountOfAllowedTokens).eq(
-			tokensExample.length +
-				1 /* Since 1 token already added in deploy time */
-		);
+		const lengthAfter = await gifty.getAmountOfAllowedTokens();
+
+		expect(lengthAfter.sub(lengthBefore)).eq(tokensExample.length);
 	});
 
 	it("Add many tokens - assign a correct index (15 tokens)", async function () {
-		const { owner, gifty, giftyToken } = await loadFixture(GiftyFixture);
+		const { owner, gifty } = await loadFixture(GiftyFixture);
 
-		const tokensExample: string[] = [giftyToken.address];
+		const tokensExample: string[] = [sampleToken];
 
 		for (let i = 0; i < exampleTokenAmount; i++) {
 			const newMockToken: MockToken = await new MockToken__factory(

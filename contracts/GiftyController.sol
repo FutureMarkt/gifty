@@ -154,6 +154,7 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
         changeUniswapConfig(uniswapV3Pool, secondsAgo);
 		changeRefundSettings(refundSettings /* giftRefundCommission SHOULD BE WITH 2 DECIMALS*/);
         changeCommissionSettings(thresholds, commissions);
+        _addToken(giftyToken);
 	}
 
 	/**
@@ -417,6 +418,9 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 
 	/* --------------------Private functions-------------------- */
 	function _addToken(address token) private {
+		// Token already exist at Gifty platform
+		if (s_tokenInfo[token].isTokenAllowed) revert Gifty__error_24();
+
 		// Checking whether the address which are trying to add is a contract?
 		if (!token.isContract()) revert Gifty__error_0(token);
 

@@ -155,7 +155,6 @@ contract Gifty is GiftyController {
 		_giftToken(receiver, token, amount, TypeOfCommission.TOKEN);
 	}
 
-	// TODO
 	function giftTokenWithGFTCommission(
 		address receiver,
 		address token,
@@ -253,7 +252,7 @@ contract Gifty is GiftyController {
 		emit SurplusesClaimed(msg.sender, surpluses);
 	}
 
-	/* --------------------Internal functions-------------------- */
+	/* --------------------Private functions-------------------- */
 
 	function _giftToken(
 		address receiver,
@@ -274,8 +273,15 @@ contract Gifty is GiftyController {
 
 		uint256 amountToGift;
 		if (commissionType == TypeOfCommission.GFT) {
-			_transferIn(s_giftyToken, msg.sender, chargedCommission);
-			amountToGift = _transferIn(token, msg.sender, amount);
+			address GFT = s_giftyToken;
+
+			if (token == GFT) {
+				uint256 receivedAmount = _transferIn(GFT, msg.sender, amount + chargedCommission);
+				amountToGift = receivedAmount - chargedCommission;
+			} else {
+				_transferIn(GFT, msg.sender, chargedCommission);
+				amountToGift = _transferIn(token, msg.sender, amount);
+			}
 		} else {
 			uint256 transferedAmount = _transferIn(token, msg.sender, amount + chargedCommission);
 			amountToGift = transferedAmount - chargedCommission;
