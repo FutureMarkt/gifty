@@ -2,11 +2,9 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { getCommissionAmount } from "../../TestHelper";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 
 const tokenAmount: BigNumber = ethers.utils.parseEther("100");
-const tokenCommission: BigNumber = ethers.utils.parseEther("1");
 
 describe("GiftyController | transferToPiggyBoxTokens", function () {
 	it("Caller not the owner should be reverted", async function () {

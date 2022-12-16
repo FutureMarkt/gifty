@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/interfaces/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+/* External contracts */
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./GiftyLibraries/ExternalAccountsInteraction.sol";
+/* External interfaces / libraries */
+import {SafeERC20, IERC20, Address} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 error PiggyBox__onlyGiftyCanSendETH();
 
 contract PiggyBox is Ownable {
 	using SafeERC20 for IERC20;
-	using ExternalAccountsInteraction for address payable;
+	using Address for address payable;
 
 	address private s_gifty;
 
@@ -25,17 +25,13 @@ contract PiggyBox is Ownable {
 		emit GiftyChanged(gifty);
 	}
 
-	function withdrawToken(
-		IERC20 token,
-		address to,
-		uint256 amount
-	) external onlyOwner {
+	function withdrawToken(IERC20 token, address to, uint256 amount) external onlyOwner {
 		token.safeTransfer(to, amount);
 		emit TokenWithdrawn(address(token), to, amount);
 	}
 
 	function withdrawETH(address payable to, uint256 amount) external onlyOwner {
-		to.sendETH(amount);
+		to.sendValue(amount);
 		emit ETHWithdrawn(to, amount);
 	}
 

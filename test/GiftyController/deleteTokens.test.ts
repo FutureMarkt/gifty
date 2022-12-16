@@ -2,13 +2,13 @@ import { expect } from "chai";
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { MockToken, MockToken__factory } from "../../../typechain-types";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { MockToken, MockToken__factory } from "../../typechain-types";
 import {
 	getCommissionAmount,
 	getPriceOfExactETHAmount,
 	NonZeroAddress,
-} from "../../TestHelper";
+} from "../TestHelper";
 
 let sampleToken: string, listOfAllowedTokens: string[];
 

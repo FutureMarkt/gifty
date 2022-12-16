@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-/* Internal contracts */
-import "./GiftyController.sol";
+/* Inherited from GiftyController */
+import {GiftyController, AddressUpgradeable, SafeERC20Upgradeable, IERC20Upgradeable, SafeCastUpgradeable, AggregatorV3Interface} from "./GiftyController.sol";
 
 /* External libraries */
 import {PriceConverter} from "./GiftyLibraries/PriceConverter.sol";
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
 
 contract Gifty is GiftyController {
-	using ExternalAccountsInteraction for address payable;
 	using PriceConverter for *;
-	using SafeERC20 for IERC20;
-	using SafeCast for uint256;
+	using AddressUpgradeable for address payable;
+	using SafeERC20Upgradeable for IERC20Upgradeable;
+	using SafeCastUpgradeable for uint256;
 
 	/* --------------------Data types-------------------- */
 
@@ -46,17 +46,19 @@ contract Gifty is GiftyController {
 	// prettier-ignore
 	// Gift structure, each gift is represented by this structure
 	struct Gift {
-		address giver;          //                            Address of gift sender
-		address receiver;       // 20 bytes ----------------| Address of the gift recipient
-		uint96 amountInUSD;     // 12 bytes ----------------| Gift price in dollars. uint96 - In order to rest against the maximum value, the user needs to give a gift in the amount of $79_228_162_514,26...35
-		uint256 amount;         //                            Quantitative representation of the gift
-		IERC20 asset;           // 20 bytes ----------------| The address of the gift token, if it is ETH - the address will be represented by address(e)
-		TypeOfGift giftType;    // 1 byte (uint8) ----------| Described above, enum TypeOfGift
-		uint32 giftedAtBlock;   // 4 bytes -----------------| The number of the block in which the gift is sent.
-		uint40 giftedAtTime;   	// 5 bytes -----------------| The timestamp when the gift was given. (Not used in the contract, but needed for the frontend)
-		bool isClaimed;         // 1 byte ------------------| Has this gift been picked up yet?
-		bool isRefunded;        // 1 byte ------------------| Did the giver return the gift?
+		address giver;          // 20 bytes ---------| Address of gift sender
+		address receiver;       // 20 bytes ---------| Address of the gift recipient
+		uint96 amountInUSD;     // 12 bytes ---------| Gift price in dollars. uint96 - In order to reach the maximum value, the gift must be worth $79_228_162_514,26
+		uint256 amount;         // 32 bytes ---------| Quantitative representation of the gift
+		IERC20Upgradeable asset;// 20 bytes ---------| The address of the gift token, if it is ETH - the address will be represented by address(e)
+		TypeOfGift giftType;    // 1 byte (uint8) ---| Described above, enum TypeOfGift
+		uint32 giftedAtBlock;   // 4 bytes ----------| The number of the block in which the gift is sent.
+		uint40 giftedAtTime;   	// 5 bytes ----------| The timestamp when the gift was given. (Not used in the contract, but needed for the frontend)
+		bool isClaimed;         // 1 byte -----------| Has this gift been picked up yet?
+		bool isRefunded;        // 1 byte -----------| Did the giver return the gift?
 	}
+
+	/* --------------------State variables-------------------- */
 
 	// All gifts that have ever been given through the contract
 	Gift[] internal s_allGifts;
@@ -85,8 +87,8 @@ contract Gifty is GiftyController {
 		GiftRefundSettings memory refundSettings,
 		CommissionThresholds memory thresholds,
 		Commissions memory commissions
-	) external onlyOwner initializer {
-		initializeGiftyController(
+	) external initializer {
+		__GiftyController_init(
 			giftyToken,
 			piggyBox,
 			uniswapV3Pool,
@@ -242,17 +244,220 @@ contract Gifty is GiftyController {
 		emit GiftRefunded(giftId);
 	}
 
-	function claimSurplusesETH() external nonReentrant {
+	function claimSurplusesETH() external {
 		uint256 surpluses = s_commissionSurplusesETH[msg.sender];
 		if (surpluses == 0) revert Gifty__error_7();
 
-		payable(msg.sender).sendETH(surpluses);
 		delete s_commissionSurplusesETH[msg.sender];
+		payable(msg.sender).sendValue(surpluses);
 
 		emit SurplusesClaimed(msg.sender, surpluses);
 	}
 
+	/* --------------------Charge commission functions-------------------- */
+
+	function _chargeCommission(
+		address asset,
+		uint256 assetAmount,
+		uint256 priceInUSD,
+		TypeOfCommission commissionType
+	) internal returns (uint256 commissionCharged) {
+		// Get a commission interest rate for the gift.
+		(uint256 commissionRate, uint256 reducedCommissionRate) = getCommissionRate(priceInUSD);
+
+		// Here will be stored commission rate for this gift
+		uint256 commissionRateForThisGift;
+
+		if (commissionType == TypeOfCommission.GFT) {
+			commissionCharged = _chargeGFTCommission(
+				asset,
+				assetAmount,
+				priceInUSD,
+				reducedCommissionRate
+			);
+
+			// Assign a reduced commission value to calculate the user's financial information
+			commissionRateForThisGift = reducedCommissionRate;
+		} else if (commissionType == TypeOfCommission.TOKEN) {
+			commissionCharged = _calculateCommission(assetAmount, commissionRate);
+
+			s_giftyCommission[asset] += commissionCharged;
+			commissionRateForThisGift = commissionRate;
+		} else {
+			_chargeETHCommission(asset, assetAmount, commissionRate);
+			commissionRateForThisGift = commissionRate;
+		}
+
+		// Calculate and update financial information in dollar terms
+		_updateTheUserFinInfo(priceInUSD, commissionRateForThisGift);
+	}
+
 	/* --------------------Private functions-------------------- */
+
+	function _chargeGFTCommission(
+		address asset,
+		uint256 assetAmount,
+		uint256 priceInUSD,
+		uint256 commissionRate
+	) private returns (uint256 commissionCharged) {
+		address GFT = s_giftyToken;
+
+		// If the asset is already GFT, then we can calculate the percentage from assetAmount
+		if (asset == GFT)
+			commissionCharged = _calculateCommission(assetAmount, commissionRate);
+			// In other cases, you need to get the number of GFT tokens using a more complex calculation.
+		else commissionCharged = _getCommissionAmountInGFT(priceInUSD, commissionRate);
+
+		// Increase earned GFT token by charged commission from this gift
+		s_giftyCommission[GFT] += commissionCharged;
+
+		return commissionCharged;
+	}
+
+	function _chargeETHCommission(
+		address asset,
+		uint256 assetAmount,
+		uint256 commissionRate
+	) private returns (uint256 commissionCharged) {
+		if (msg.value < assetAmount) revert Gifty__error_5(assetAmount, msg.value);
+
+		/* 
+                When giving ETH and paying commission in ETH - 
+                commission it will be charged from the delta, which is calculated by the formula:
+                total transferred - the amount of the gift.
+                The excess will be returned to the sender.
+            */
+		uint256 commissionPaid = msg.value - assetAmount;
+
+		// What is the commission amount for this gift?
+		uint256 commissionShouldBePaid = commissionCharged = _calculateCommission(
+			assetAmount,
+			commissionRate
+		);
+
+		// Delta less commission? If so, revert.
+		if (commissionPaid < commissionShouldBePaid)
+			revert Gifty__error_3(commissionPaid, commissionShouldBePaid);
+		/*
+                Delta more commission? If yes, then let the user then withdraw it.
+
+                * We do not transfer the excess immediately,
+                * because the gift can be made through a contract that does not support receiving ETH.
+            */
+		else if (commissionPaid > commissionShouldBePaid)
+			s_commissionSurplusesETH[msg.sender] += (commissionPaid - commissionShouldBePaid);
+
+		// We replenish the balance of the Gifty in the amount of the commission.
+		s_giftyCommission[asset] += commissionShouldBePaid;
+	}
+
+	function _getCommissionAmountInGFT(
+		uint256 priceInUSD,
+		uint256 commissionRate
+	) private view returns (uint256) {
+		// Get amount of the commission in ETH with reduced rate
+		uint256 commissionPriceInUSD = _calculateCommission(priceInUSD, commissionRate);
+
+		// Сache Uniswap config to memory
+		UniswapOracleConfig memory uniConfig = s_uniConfig;
+
+		// Convert comission price from USD to GFT
+		return
+			_getPriceOfExactAmountUniswapV3(
+				uniConfig.pool,
+				uniConfig.anotherTokenInPool,
+				s_giftyToken,
+				uniConfig.secondsAgo,
+				commissionPriceInUSD
+			);
+	}
+
+	/* --------------------Interaction with gifts-------------------- */
+
+	// Universal Gift creation.
+	function _createGift(
+		address receiver,
+		address assetToGift,
+		uint256 assetAmount,
+		uint256 giftPriceInUSD,
+		TypeOfGift currentGiftType
+	) internal {
+		Gift memory newGift = Gift({
+			giver: msg.sender,
+			receiver: receiver,
+			amountInUSD: giftPriceInUSD.toUint96(),
+			amount: assetAmount,
+			asset: IERC20Upgradeable(assetToGift),
+			giftType: currentGiftType,
+			giftedAtBlock: _blockNumber(),
+			giftedAtTime: _blockTimestamp(),
+			isClaimed: false,
+			isRefunded: false
+		});
+
+		uint256 newGiftIndex = s_allGifts.length;
+		s_allGifts.push(newGift);
+
+		s_userInformation[msg.sender].givenGifts.push(newGiftIndex);
+		s_userInformation[receiver].receivedGifts.push(newGiftIndex);
+
+		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount, newGiftIndex);
+	}
+
+	// Validation of access to the gift interaction.
+	function _validateGiftUnpacking(
+		address unpacker,
+		bool isClaimed,
+		bool isRefunded
+	) internal view {
+		if (unpacker != msg.sender) revert Gifty__error_12();
+		else if (isClaimed) revert Gifty__error_13();
+		else if (isRefunded) revert Gifty__error_14();
+	}
+
+	// Universal sending of a gift depending on its type.
+	function _sendGift(TypeOfGift giftType, IERC20Upgradeable token, uint256 amount) internal {
+		if (giftType == TypeOfGift.FT) {
+			token.safeTransfer(msg.sender, amount);
+		} else if (giftType == TypeOfGift.ETH) {
+			payable(msg.sender).sendValue(amount);
+		}
+		// TODO In future here can be NFT or something else
+		else revert("Not complited yet");
+	}
+
+	/* --------------------FinInfo updates functions -------------------- */
+
+	function _updateTheUserFinInfo(uint256 giftPriceInUSD, uint256 commissionRate) internal {
+		/*
+            Calculate the equivalent of the gift amount and commission in USD,
+            for accounting in the personal account and issuing statuses.
+        */
+		uint256 commissionInUSD = _calculateCommission(giftPriceInUSD, commissionRate);
+
+		// Updating the user's financial information
+		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
+
+		currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD.toUint128();
+		currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
+	}
+
+	function _updateTheUserFinInfoRefund(
+		uint256 giftPriceInUSD,
+		uint256 commissionRate,
+		bool isCommissionFreeRefund
+	) internal {
+		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
+
+		currentUserFinInfo.totalTurnoverInUSD -= giftPriceInUSD.toUint128();
+
+		if (!isCommissionFreeRefund) {
+			uint256 commissionInUSD = _calculateCommission(giftPriceInUSD, commissionRate);
+			currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
+		}
+	}
+
+	/* --------------------Token interactions-------------------- */
 
 	function _giftToken(
 		address receiver,
@@ -290,195 +495,6 @@ contract Gifty is GiftyController {
 		_createGift(receiver, token, amountToGift, giftPriceInUSD, TypeOfGift.FT);
 	}
 
-	/* --------------------Internal functions-------------------- */
-
-	function _chargeCommission(
-		address asset,
-		uint256 assetAmount,
-		uint256 priceInUSD,
-		TypeOfCommission commissionType
-	) internal returns (uint256 commissionCharged) {
-		// Get a commission interest rate for the gift.
-		(uint256 commissionRate, uint256 reducedCommissionRate) = getCommissionRate(priceInUSD);
-
-		// Here will be stored commission rate for this gift
-		uint256 commissionRateForThisGift;
-
-		if (commissionType == TypeOfCommission.GFT) {
-			address GFT = s_giftyToken;
-
-			// If the asset is already GFT, then we can calculate the percentage from assetAmount
-			if (asset == GFT)
-				commissionCharged = _calculateCommission(assetAmount, reducedCommissionRate);
-				// In other cases, you need to get the number of GFT tokens using a more complex calculation.
-			else commissionCharged = _getCommissionAmountInGFT(priceInUSD, reducedCommissionRate);
-
-			// Increase earned GFT token by charged commission from this gift
-			s_giftyCommission[GFT] += commissionCharged;
-
-			// Assign a reduced commission value to calculate the user's financial information
-			commissionRateForThisGift = reducedCommissionRate;
-		} else if (commissionType == TypeOfCommission.TOKEN) {
-			commissionCharged = _calculateCommission(assetAmount, commissionRate);
-
-			s_giftyCommission[asset] += commissionCharged;
-			commissionRateForThisGift = commissionRate;
-		} else {
-			if (msg.value < assetAmount) revert Gifty__error_5(assetAmount, msg.value);
-
-			/* 
-                When giving ETH and paying commission in ETH - 
-                commission it will be charged from the delta, which is calculated by the formula:
-                total transferred - the amount of the gift.
-                The excess will be returned to the sender.
-            */
-			uint256 commissionPaid;
-			unchecked {
-				commissionPaid = msg.value - assetAmount;
-			}
-
-			// What is the commission amount for this gift?
-			uint256 commissionShouldBePaid = commissionCharged = _calculateCommission(
-				assetAmount,
-				commissionRate
-			);
-
-			// Delta less commission? If so, revert.
-			if (commissionPaid < commissionShouldBePaid)
-				revert Gifty__error_3(commissionPaid, commissionShouldBePaid);
-			/*
-                Delta more commission? If yes, then let the user then withdraw it.
-
-                * We do not transfer the excess immediately,
-                * because the gift can be made through a contract that does not support receiving ETH.
-            */
-			else if (commissionPaid > commissionShouldBePaid) {
-				unchecked {
-					s_commissionSurplusesETH[msg.sender] += (commissionPaid -
-						commissionShouldBePaid);
-				}
-			}
-
-			// We replenish the balance of the Gifty in the amount of the commission.
-			unchecked {
-				s_giftyCommission[asset] += commissionShouldBePaid;
-			}
-
-			commissionRateForThisGift = commissionRate;
-		}
-
-		// Calculate and update financial information in dollar terms
-		_updateTheUserFinInfo(priceInUSD, commissionRateForThisGift);
-	}
-
-	function _getCommissionAmountInGFT(
-		uint256 priceInUSD,
-		uint256 commissionRate
-	) private view returns (uint256) {
-		// Get amount of the commission in ETH with reduced rate
-		uint256 commissionPriceInUSD = _calculateCommission(priceInUSD, commissionRate);
-
-		// Сache Uniswap config to memory
-		UniswapOracleConfig memory uniConfig = s_uniConfig;
-
-		// Convert comission price from USD to GFT
-		return
-			_getPriceOfExactAmountUniswapV3(
-				uniConfig.pool,
-				uniConfig.anotherTokenInPool,
-				s_giftyToken,
-				uniConfig.secondsAgo,
-				commissionPriceInUSD
-			);
-	}
-
-	/* --------------------Interaction with gifts functions-------------------- */
-
-	// Universal Gift creation.
-	function _createGift(
-		address receiver,
-		address assetToGift,
-		uint256 assetAmount,
-		uint256 giftPriceInUSD,
-		TypeOfGift currentGiftType
-	) internal {
-		Gift memory newGift = Gift({
-			giver: msg.sender,
-			receiver: receiver,
-			amountInUSD: giftPriceInUSD.toUint96(),
-			amount: assetAmount,
-			asset: IERC20(assetToGift),
-			giftType: currentGiftType,
-			giftedAtBlock: _blockNumber(),
-			giftedAtTime: _blockTimestamp(),
-			isClaimed: false,
-			isRefunded: false
-		});
-
-		uint256 newGiftIndex = s_allGifts.length;
-		s_allGifts.push(newGift);
-
-		s_userInformation[msg.sender].givenGifts.push(newGiftIndex);
-		s_userInformation[receiver].receivedGifts.push(newGiftIndex);
-
-		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount, newGiftIndex);
-	}
-
-	// Validation of access to the gift interaction.
-	function _validateGiftUnpacking(
-		address unpacker,
-		bool isClaimed,
-		bool isRefunded
-	) internal view {
-		if (unpacker != msg.sender) revert Gifty__error_12();
-		else if (isClaimed) revert Gifty__error_13();
-		else if (isRefunded) revert Gifty__error_14();
-	}
-
-	// Universal sending of a gift depending on its type.
-	function _sendGift(TypeOfGift giftType, IERC20 token, uint256 amount) internal {
-		if (giftType == TypeOfGift.FT) {
-			token.safeTransfer(msg.sender, amount);
-		} else if (giftType == TypeOfGift.ETH) {
-			payable(msg.sender).sendETH(amount);
-		}
-		// TODO In future here can be NFT or something else
-		else revert("Not complited yet");
-	}
-
-	/* --------------------FinInfo updates functions -------------------- */
-
-	function _updateTheUserFinInfo(uint256 giftPriceInUSD, uint256 commissionRate) internal {
-		/*
-            Calculate the equivalent of the gift amount and commission in USD,
-            for accounting in the personal account and issuing statuses.
-        */
-		uint256 commissionInUSD = _calculateCommission(giftPriceInUSD, commissionRate);
-
-		// Updating the user's financial information
-		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
-
-		currentUserFinInfo.totalTurnoverInUSD += giftPriceInUSD.toUint128();
-		currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
-	}
-
-	function _updateTheUserFinInfoRefund(
-		uint256 giftPriceInUSD,
-		uint256 commissionRate,
-		bool isCommissionFreeRefund
-	) internal {
-		FinancialInfo storage currentUserFinInfo = s_userInformation[msg.sender].finInfo;
-
-		currentUserFinInfo.totalTurnoverInUSD -= giftPriceInUSD.toUint128();
-
-		if (!isCommissionFreeRefund) {
-			uint256 commissionInUSD = _calculateCommission(giftPriceInUSD, commissionRate);
-			currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
-		}
-	}
-
-	/* --------------------Token interaction functions-------------------- */
-
 	// A safe version of transferFrom token transfer, as some may have an internal commission.
 	// Returns the number of tokens by which the contract balance has increased.
 	function _transferIn(
@@ -487,7 +503,7 @@ contract Gifty is GiftyController {
 		uint256 amount
 	) internal returns (uint256) {
 		uint256 assetBalanceBefore = _getTokenBalance(token);
-		IERC20(token).safeTransferFrom(sender, address(this), amount);
+		IERC20Upgradeable(token).safeTransferFrom(sender, address(this), amount);
 		uint256 assetBalanceAfter = _getTokenBalance(token);
 
 		return assetBalanceAfter - assetBalanceBefore;
@@ -496,7 +512,7 @@ contract Gifty is GiftyController {
 	// A secure version of getting a balance.
 	function _getTokenBalance(address token) internal view returns (uint256) {
 		(bool success, bytes memory data) = token.staticcall(
-			abi.encodeWithSelector(IERC20.balanceOf.selector, address(this))
+			abi.encodeWithSelector(IERC20Upgradeable.balanceOf.selector, address(this))
 		);
 
 		if (!success || data.length < 32) revert Gifty__error_19();
@@ -546,7 +562,7 @@ contract Gifty is GiftyController {
 		return amountOut;
 	}
 
-	/* --------------------Retrieving information from the block header functions-------------------- */
+	/* --------------------Retrieving converted information from the block header-------------------- */
 
 	// Get block.number converted to Uint32
 	function _blockNumber() internal view returns (uint32) {
@@ -558,7 +574,7 @@ contract Gifty is GiftyController {
 		return block.timestamp.toUint40();
 	}
 
-	/* --------------------Commission calculating-------------------- */
+	/* --------------------calculating-------------------- */
 
 	// Calculating the commission.
 	// The minimum amount is 10000, since values less than that are subject to lossy rounding.
@@ -621,7 +637,7 @@ contract Gifty is GiftyController {
 		return s_userInformation[user];
 	}
 
-	function version() external pure returns (uint256) {
+	function version() external pure virtual returns (uint256) {
 		return 1;
 	}
 }

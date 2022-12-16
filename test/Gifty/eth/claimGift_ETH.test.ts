@@ -101,9 +101,8 @@ describe("Gifty | Claim ETH", function () {
 
 		await expect(
 			attacker.attack(gifty.address, 0, 1, { gasLimit: 30000000 })
-		).to.be.revertedWithCustomError(
-			gifty,
-			"ExternalAccountsInteraction__lowLevelTransferIsFailed"
+		).to.be.revertedWith(
+			"Address: unable to send value, recipient may have reverted"
 		);
 	});
 });

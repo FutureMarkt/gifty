@@ -79,11 +79,8 @@ describe("Gifty | claimSurplusesETH", function () {
 			value: giftWithBigCommission,
 		});
 
-		await expect(
-			middleContract.claimSurplusesETH()
-		).to.be.revertedWithCustomError(
-			gifty,
-			"ExternalAccountsInteraction__lowLevelTransferIsFailed"
+		await expect(middleContract.claimSurplusesETH()).to.be.revertedWith(
+			"Address: unable to send value, recipient may have reverted"
 		);
 	});
 
@@ -131,9 +128,8 @@ describe("Gifty | claimSurplusesETH", function () {
 
 		await expect(
 			attacker.attack(gifty.address, 1, 3, { gasLimit: 30000000 })
-		).to.be.revertedWithCustomError(
-			gifty,
-			"ExternalAccountsInteraction__lowLevelTransferIsFailed"
+		).to.be.revertedWith(
+			"Address: unable to send value, recipient may have reverted"
 		);
 	});
 });

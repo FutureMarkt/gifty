@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { commissionSettings, FullComissionRate } from "../../TestHelper";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { commissionSettings, FullComissionRate } from "../TestHelper";
 
 describe("Gifty | changeFullCommissions", function () {
 	it("Caller not the owner should be reverted", async function () {
