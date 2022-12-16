@@ -7,8 +7,9 @@ import {GiftyController, AddressUpgradeable, SafeERC20Upgradeable, IERC20Upgrade
 /* External libraries */
 import {PriceConverter} from "./GiftyLibraries/PriceConverter.sol";
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
+import {EIP712Upgradeable, ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 
-contract Gifty is GiftyController {
+contract Gifty is GiftyController, EIP712Upgradeable {
 	using PriceConverter for *;
 	using AddressUpgradeable for address payable;
 	using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -58,7 +59,14 @@ contract Gifty is GiftyController {
 		bool isRefunded;        // 1 byte -----------| Did the giver return the gift?
 	}
 
+	struct AssignReceiver {
+		address receiver;
+		uint256 giftId;
+	}
+
 	/* --------------------State variables-------------------- */
+
+	bytes32 private s_assignReceiverType;
 
 	// All gifts that have ever been given through the contract
 	Gift[] internal s_allGifts;
@@ -97,6 +105,9 @@ contract Gifty is GiftyController {
 			thresholds,
 			commissions
 		);
+
+		__EIP712_init("Gifty", "1");
+		s_assignReceiverType = keccak256("AssignReceiver(address receiver,uint256 giftId)");
 	}
 
 	/**
@@ -154,6 +165,7 @@ contract Gifty is GiftyController {
 		address token,
 		uint256 amount
 	) external validateReceiver(receiver) {
+		if (token == s_giftyToken) revert Gifty__error_27();
 		_giftToken(receiver, token, amount, TypeOfCommission.TOKEN);
 	}
 
@@ -175,19 +187,28 @@ contract Gifty is GiftyController {
 	 * @param giftId - The index of the gift you want to claim.
 	 */
 	function claimGift(uint256 giftId) external nonReentrant {
+		_claimGift(giftId);
+	}
+
+	function claimGiftWithPermit(
+		uint256 giftId,
+		uint8 v,
+		bytes32 r,
+		bytes32 s
+	) external nonReentrant {
 		Gift memory currentGift = s_allGifts[giftId];
 
-		// Condition validation
-		_validateGiftUnpacking(
-			currentGift.receiver,
-			currentGift.isClaimed,
-			currentGift.isRefunded
-		);
+		if (currentGift.receiver != address(0)) revert Gifty__error_25();
 
-		_sendGift(currentGift.giftType, currentGift.asset, currentGift.amount);
+		bytes32 structHash = hashAssignReceiverStruct(s_assignReceiverType, msg.sender, giftId);
+		bytes32 digest = _hashTypedDataV4(structHash);
 
-		s_allGifts[giftId].isClaimed = true;
-		emit GiftClaimed(giftId);
+		address potentialGiver = ECDSAUpgradeable.recover(digest, v, r, s);
+		if (currentGift.giver != potentialGiver) revert Gifty__error_26();
+
+		s_allGifts[giftId].receiver = msg.sender;
+
+		_claimGift(giftId);
 	}
 
 	/**
@@ -404,6 +425,22 @@ contract Gifty is GiftyController {
 		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount, newGiftIndex);
 	}
 
+	function _claimGift(uint256 giftId) internal {
+		Gift memory currentGift = s_allGifts[giftId];
+
+		// Condition validation
+		_validateGiftUnpacking(
+			currentGift.receiver,
+			currentGift.isClaimed,
+			currentGift.isRefunded
+		);
+
+		_sendGift(currentGift.giftType, currentGift.asset, currentGift.amount);
+
+		s_allGifts[giftId].isClaimed = true;
+		emit GiftClaimed(giftId);
+	}
+
 	// Validation of access to the gift interaction.
 	function _validateGiftUnpacking(
 		address unpacker,
@@ -574,7 +611,7 @@ contract Gifty is GiftyController {
 		return block.timestamp.toUint40();
 	}
 
-	/* --------------------calculating-------------------- */
+	/* --------------------Other-------------------- */
 
 	// Calculating the commission.
 	// The minimum amount is 10000, since values less than that are subject to lossy rounding.
@@ -588,6 +625,14 @@ contract Gifty is GiftyController {
 
 		uint256 decimals = 2;
 		return (amount * commissionRate) / (100 * 10 ** decimals);
+	}
+
+	function hashAssignReceiverStruct(
+		bytes32 typeHash,
+		address receiver,
+		uint256 giftId
+	) private pure returns (bytes32) {
+		return keccak256(abi.encode(typeHash, receiver, giftId));
 	}
 
 	/* --------------------Getter functions-------------------- */

@@ -24,6 +24,7 @@
 	"homepage": "https://github.com/FutureMarkt/gifty#readme",
 	"devDependencies": {
 		"@chainlink/contracts": "^0.5.1",
+		"@metamask/eth-sig-util": "^5.0.2",
 		"@nomicfoundation/hardhat-toolbox": "^2.0.0",
 		"@openzeppelin/contracts": "^4.8.0",
 		"@openzeppelin/contracts-upgradeable": "^4.8.0",

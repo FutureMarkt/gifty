@@ -115,4 +115,13 @@ interface IGiftyErrors {
 
 	/** @notice You are trying to add a token that has already been added to the platform. */
 	error Gifty__error_24();
+
+	/** @notice The gift you wanted to access already has a designated receiver. */
+	error Gifty__error_25();
+
+	/** @notice The recovered address does not match the gift giver. */
+	error Gifty__error_26();
+
+	/** @notice You are trying to give a GiftyToken via giftToken funciton, please do it via giftTokenWithGFTCommission */
+	error Gifty__error_27();
 }
