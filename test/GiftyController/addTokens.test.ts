@@ -1,8 +1,8 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { ZeroAddress, NonZeroAddress } from "../../TestHelper";
-import { MockToken, MockToken__factory } from "../../../typechain-types";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { ZeroAddress, NonZeroAddress } from "../TestHelper";
+import { MockToken, MockToken__factory } from "../../typechain-types";
 import { BigNumber } from "ethers";
 
 let sampleToken: string;

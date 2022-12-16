@@ -1,5 +1,5 @@
-import { ethers } from "hardhat";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import { ethers, upgrades } from "hardhat";
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
@@ -60,19 +60,19 @@ export async function GiftyFixture() {
 	const initialAggregatorsAddress: string[] = [tokenMockAggregator.address];
 
 	// Deploy gifty main contract
-	const gifty: typechain.Gifty = await new typechain.Gifty__factory(
-		owner
-	).deploy();
-
-	await gifty.initialize(
-		giftyToken.address,
-		piggyBox.address,
-		uniswapPoolMock.address,
-		testHelper.secondsAgo, // 30 min
-		testHelper.refundParams,
-		testHelper.commissionSettings.thresholds,
-		testHelper.commissionSettings.commissions
-	);
+	const gifty: typechain.Gifty = (await upgrades.deployProxy(
+		new typechain.Gifty__factory(owner),
+		[
+			giftyToken.address,
+			piggyBox.address,
+			uniswapPoolMock.address,
+			testHelper.secondsAgo, // 30 min
+			testHelper.refundParams,
+			testHelper.commissionSettings.thresholds,
+			testHelper.commissionSettings.commissions,
+		],
+		{ kind: "uups" }
+	)) as typechain.Gifty;
 
 	await gifty.changePriceFeedsForTokens(
 		[testHelper.EthAddress],

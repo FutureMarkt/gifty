@@ -8,6 +8,7 @@ import {
 	OneEtherGiftWithCommission,
 	getConvertedPrice,
 	EthAddress,
+	ZeroAddress,
 } from "../../TestHelper";
 import { BigNumber } from "ethers";
 
@@ -266,5 +267,15 @@ describe("Gifty | giftETH", function () {
 		for (let i = 0; i < expectedResult.length; i++) {
 			expect(latestGift[i]).eq(expectedResult[i]);
 		}
+	});
+
+	it("Receiver can be zero address", async function () {
+		const { gifty } = await loadFixture(GiftyFixture);
+
+		await expect(
+			gifty.giftETH(ZeroAddress, giftAmount, {
+				value: OneEtherGiftWithCommission,
+			})
+		).not.to.be.reverted;
 	});
 });

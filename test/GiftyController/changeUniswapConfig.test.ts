@@ -1,13 +1,13 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { NonZeroAddress, ZeroAddress } from "../../TestHelper";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { NonZeroAddress, ZeroAddress } from "../TestHelper";
 import {
 	MockToken,
 	MockToken__factory,
 	UniswapV3OracleMock,
 	UniswapV3OracleMock__factory,
-} from "../../../typechain-types";
+} from "../../typechain-types";
 
 describe("GiftyController | chnageUniswapConfig", function () {
 	it("Caller not the owner should be reverted", async function () {

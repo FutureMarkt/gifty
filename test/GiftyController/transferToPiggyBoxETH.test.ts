@@ -1,13 +1,13 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import {
 	EthAddress,
 	OneEther,
 	OneEtherGiftWithCommission,
-} from "../../TestHelper";
+} from "../TestHelper";
 import { BigNumber } from "ethers";
-import { ethAddress } from "../../../dataHelper";
+import { ethAddress } from "../../dataHelper";
 
 describe("GiftyController | transferToPiggyBoxETH", function () {
 	const expectedValue: number = 100;

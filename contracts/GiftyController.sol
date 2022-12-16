@@ -10,22 +10,25 @@ import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/Ag
 import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
 
 /* External contracts */
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Initializable} from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import {ReentrancyGuard} from "./utils/ReentrancyGuard.sol";
-
-/* Libraries */
-import {ExternalAccountsInteraction} from "./GiftyLibraries/ExternalAccountsInteraction.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 /* External libraries */
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {SafeERC20Upgradeable, IERC20Upgradeable, AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/utils/SafeERC20Upgradeable.sol";
+import {SafeCastUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/math/SafeCastUpgradeable.sol";
 
-contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, ReentrancyGuard {
-	using ExternalAccountsInteraction for address;
-	using ExternalAccountsInteraction for address payable;
-	using SafeERC20 for IERC20;
-	using SafeCast for uint256;
+contract GiftyController is
+	IGiftyEvents,
+	IGiftyErrors,
+	UUPSUpgradeable,
+	OwnableUpgradeable,
+	ReentrancyGuardUpgradeable
+{
+	using AddressUpgradeable for address;
+	using AddressUpgradeable for address payable;
+	using SafeCastUpgradeable for uint256;
+	using SafeERC20Upgradeable for IERC20Upgradeable;
 
 	// Information about each token
 	struct TokenInfo {
@@ -114,6 +117,13 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	mapping(address => uint256)
 		internal s_giftyCommission; /* asset address */ /* earned commission */
 
+	// Gap for future upgrades.
+	// To learn more: [https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#storage-gaps]
+	// solhint-disable-next-line
+	uint256[50] private __gap;
+
+	/* --------------------Modifiers-------------------- */
+
 	/**
 	 * @dev It is used to compare the lengths of two arrays,
 	 * @dev if they are not equal it gives an error.
@@ -135,26 +145,51 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		_;
 	}
 
-	// Initializes controller contract
-	//prettier-ignore
-	function initializeGiftyController(
+	/* --------------------Functions-------------------- */
+
+	// Initialize controller contract
+	function __GiftyController_init(
 		address giftyToken,
 		address payable piggyBox,
-        address uniswapV3Pool,
-        uint32 secondsAgo,
-        GiftRefundSettings memory refundSettings,
-        CommissionThresholds memory thresholds,
+		address uniswapV3Pool,
+		uint32 secondsAgo,
+		GiftRefundSettings memory refundSettings,
+		CommissionThresholds memory thresholds,
 		Commissions memory commissions
+	) internal onlyInitializing {
+		// Initialize OZ contracts
+		__Ownable_init();
+		__UUPSUpgradeable_init();
+		__ReentrancyGuard_init();
 
-	) internal onlyInitializing notZeroAddress(giftyToken) {
-		s_giftyToken = giftyToken;
-		emit GiftyTokenChanged(giftyToken);
-
+		// Gifty controller logic
+		changeGiftyToken(giftyToken, uniswapV3Pool, secondsAgo);
 		changePiggyBox(piggyBox);
-        changeUniswapConfig(uniswapV3Pool, secondsAgo);
 		changeRefundSettings(refundSettings /* giftRefundCommission SHOULD BE WITH 2 DECIMALS*/);
-        changeCommissionSettings(thresholds, commissions);
-        _addToken(giftyToken);
+		changeCommissionSettings(thresholds, commissions);
+	}
+
+	function changeGiftyToken(
+		address newGiftyToken,
+		address pool,
+		uint32 secondsAgo
+	) public onlyOwner notZeroAddress(newGiftyToken) notZeroAddress(pool) {
+		address currentGiftyToken = s_giftyToken;
+
+		if (currentGiftyToken != address(0)) {
+			_deleteToken(currentGiftyToken);
+
+			// Transfer commission to PiggyBox
+			uint256 earnedCommission = s_giftyCommission[currentGiftyToken];
+			if (earnedCommission > 0)
+				_transferAssetCommissionToPiggyBox(currentGiftyToken, earnedCommission);
+		}
+
+		s_giftyToken = newGiftyToken;
+		_addToken(newGiftyToken);
+		emit GiftyTokenChanged(newGiftyToken);
+
+		changeUniswapConfig(pool, secondsAgo);
 	}
 
 	/**
@@ -293,7 +328,7 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	 *
 	 * @param tokensToBeDeleted - an array of tokens to be deleted.
 	 */
-	function deleteTokens(address[] calldata tokensToBeDeleted) external onlyOwner {
+	function deleteTokens(address[] memory tokensToBeDeleted) external onlyOwner {
 		for (uint256 i; i < tokensToBeDeleted.length; i++) {
 			address currentTokenToBeDeleted = tokensToBeDeleted[i];
 
@@ -483,9 +518,9 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 		if (amount > giftyCommissionBalance) revert Gifty__error_6(amount, giftyCommissionBalance);
 
 		if (asset == _getETHAddress()) {
-			s_piggyBox.sendETH(amount);
+			s_piggyBox.sendValue(amount);
 		} else {
-			IERC20(asset).safeTransfer(s_piggyBox, amount);
+			IERC20Upgradeable(asset).safeTransfer(s_piggyBox, amount);
 		}
 
 		// unchecked - since the above was a check that the balance is greater than the amount being transferred
@@ -543,4 +578,6 @@ contract GiftyController is IGiftyEvents, IGiftyErrors, Ownable, Initializable, 
 	function getCommissionSettings() external view returns (CommissionSettings memory) {
 		return s_commissionSettings;
 	}
+
+	function _authorizeUpgrade(address) internal override onlyOwner {}
 }

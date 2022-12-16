@@ -54,6 +54,68 @@ describe("Gifty | Getters", function () {
 			);
 		});
 
+		it("Length of two arrays are equals", async function () {
+			const { gifty, receiver, viewer } = await loadFixture(
+				GiftyFixture
+			);
+
+			for (let i = 1; i < 6; i++) {
+				await gifty.giftETH(receiver.address, giftAmount.mul(i), {
+					value: giftWithComission.mul(i),
+				});
+			}
+
+			const [gifts, indexes] = await viewer.getUsersReceivedGiftBatche(
+				receiver.address,
+				5,
+				3
+			);
+
+			expect(gifts.length).eq(indexes.length);
+		});
+
+		it("Index is correct", async function () {
+			const { gifty, receiver, viewer } = await loadFixture(
+				GiftyFixture
+			);
+
+			for (let i = 1; i < 6; i++) {
+				await gifty.giftETH(receiver.address, giftAmount.mul(i), {
+					value: giftWithComission.mul(i),
+				});
+			}
+
+			const [, indexes] = await viewer.getUsersReceivedGiftBatche(
+				receiver.address,
+				3,
+				1
+			);
+
+			expect(indexes[0]).eq(2);
+		});
+
+		it("Indexes are correct", async function () {
+			const { gifty, receiver, viewer } = await loadFixture(
+				GiftyFixture
+			);
+
+			for (let i = 1; i < 6; i++) {
+				await gifty.giftETH(receiver.address, giftAmount.mul(i), {
+					value: giftWithComission.mul(i),
+				});
+			}
+
+			const [, indexes] = await viewer.getUsersReceivedGiftBatche(
+				receiver.address,
+				4,
+				3
+			);
+
+			expect(indexes[0]).eq(1);
+			expect(indexes[1]).eq(2);
+			expect(indexes[2]).eq(3);
+		});
+
 		it("Get one gift | 1st from start of array", async function () {
 			const { gifty, receiver, viewer } = await loadFixture(
 				GiftyFixture
@@ -65,7 +127,7 @@ describe("Gifty | Getters", function () {
 				});
 			}
 
-			const gifts: any[] = await viewer.getUsersReceivedGiftBatche(
+			const [gifts] = await viewer.getUsersReceivedGiftBatche(
 				receiver.address,
 				5,
 				1
@@ -86,7 +148,7 @@ describe("Gifty | Getters", function () {
 			}
 
 			const desiredAmountOfGifts: number = 2;
-			const gifts: any[] = await viewer.getUsersReceivedGiftBatche(
+			const [gifts] = await viewer.getUsersReceivedGiftBatche(
 				receiver.address,
 				5,
 				desiredAmountOfGifts
@@ -109,7 +171,7 @@ describe("Gifty | Getters", function () {
 			}
 
 			const desiredAmountOfGifts: number = 6;
-			const gifts: any[] = await viewer.getUsersReceivedGiftBatche(
+			const [gifts] = await viewer.getUsersReceivedGiftBatche(
 				receiver.address,
 				6,
 				desiredAmountOfGifts
@@ -130,7 +192,7 @@ describe("Gifty | Getters", function () {
 			}
 
 			const desiredAmountOfGifts: number = 5;
-			const gifts: any[] = await viewer.getUsersReceivedGiftBatche(
+			const [gifts] = await viewer.getUsersReceivedGiftBatche(
 				receiver.address,
 				5,
 				desiredAmountOfGifts
@@ -157,14 +219,16 @@ describe("Gifty | Getters", function () {
 			}
 
 			const desiredAmountOfGifts: number = 3;
-			const gifts: any[] = await viewer.getUsersGivenGiftBatche(
+			const [gifts] = await viewer.getUsersGivenGiftBatche(
 				owner.address,
 				3,
 				desiredAmountOfGifts
 			);
 
 			for (let i = 0; i < desiredAmountOfGifts; i++) {
-				giftAmount.mul(desiredAmountOfGifts + i + 1);
+				expect(gifts[i].amount).eq(
+					giftAmount.mul(desiredAmountOfGifts + i)
+				);
 			}
 		});
 
@@ -179,7 +243,7 @@ describe("Gifty | Getters", function () {
 				});
 			}
 
-			const gifts: any[] = await viewer.getUsersGivenGiftBatche(
+			const [gifts] = await viewer.getUsersGivenGiftBatche(
 				owner.address,
 				3,
 				1

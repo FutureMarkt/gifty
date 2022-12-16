@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
-import { NonZeroAddress } from "../../TestHelper";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { NonZeroAddress } from "../TestHelper";
 
 describe("GiftyController | deleteTokenEmergency", function () {
 	let sampleToken: string;

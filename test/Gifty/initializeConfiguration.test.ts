@@ -4,7 +4,6 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { ZeroAddress, secondsAgo } from "../TestHelper";
 import { Gifty, Gifty__factory } from "../../typechain-types";
-import * as dataHelper from "../../dataHelper";
 import { refundParams, commissionSettings } from "../TestHelper";
 
 describe("Gifty | Initialize configuration", function () {
@@ -25,27 +24,6 @@ describe("Gifty | Initialize configuration", function () {
 				commissionSettings.commissions
 			)
 		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
-	});
-
-	it("Only owner can initialize contract", async function () {
-		const { owner, piggyBox, uniswapPoolMock, signers, giftyToken } =
-			await loadFixture(GiftyFixture);
-
-		const gifty: Gifty = await new Gifty__factory(owner).deploy();
-
-		await expect(
-			gifty
-				.connect(signers[0])
-				.initialize(
-					giftyToken.address,
-					piggyBox.address,
-					uniswapPoolMock.address,
-					1800,
-					refundParams,
-					commissionSettings.thresholds,
-					commissionSettings.commissions
-				)
-		).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 
 	it("Initialize should be called once", async function () {
