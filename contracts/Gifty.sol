@@ -52,7 +52,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 		uint96 amountInUSD;     // 12 bytes ---------| Gift price in dollars. uint96 - In order to reach the maximum value, the gift must be worth $79_228_162_514,26
 		uint256 amount;         // 32 bytes ---------| Quantitative representation of the gift
 		IERC20Upgradeable asset;// 20 bytes ---------| The address of the gift token, if it is ETH - the address will be represented by address(e)
-		TypeOfGift giftType;    // 1 byte (uint8) ---| Described above, enum TypeOfGift
+		TypeOfGift giftType;    // 1 byte -----------| Described above, enum TypeOfGift
 		uint32 giftedAtBlock;   // 4 bytes ----------| The number of the block in which the gift is sent.
 		uint40 giftedAtTime;   	// 5 bytes ----------| The timestamp when the gift was given. (Not used in the contract, but needed for the frontend)
 		bool isClaimed;         // 1 byte -----------| Has this gift been picked up yet?
