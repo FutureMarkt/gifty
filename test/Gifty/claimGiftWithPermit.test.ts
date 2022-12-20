@@ -30,7 +30,7 @@ async function signDataAndGetSplittedSig(
 
 const giftAmount: BigNumber = ethers.utils.parseEther("1000");
 
-describe.only("Gifty | claimGiftWithPermit", function () {
+describe("Gifty | claimGiftWithPermit", function () {
 	it("Gift already has receiver - revert", async function () {
 		const { gifty, owner, receiver, signers, giftyToken } =
 			await loadFixture(GiftyFixture);

@@ -70,6 +70,7 @@ export async function GiftyFixture() {
 			testHelper.refundParams,
 			testHelper.commissionSettings.thresholds,
 			testHelper.commissionSettings.commissions,
+			testHelper.spllitCommissionSettings,
 		],
 		{ kind: "uups" }
 	)) as typechain.Gifty;

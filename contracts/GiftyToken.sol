@@ -39,7 +39,6 @@ contract GiftyToken is ERC20, Ownable {
 	/// @notice Modifier of access to functions that are available only to the Gifty contract
 	modifier onlyGiftyContract() {
 		if (msg.sender != s_gifty) revert GiftyToken__OnlyAGiftyContractCanPerformThisAction();
-
 		_;
 	}
 

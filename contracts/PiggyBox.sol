@@ -13,12 +13,30 @@ contract PiggyBox is Ownable {
 	using SafeERC20 for IERC20;
 	using Address for address payable;
 
+	struct SplitSettings {
+		address router;
+		uint48 mintPercentage;
+		uint48 burnPercentage;
+	}
+
 	address private s_gifty;
+
+	SplitSettings private s_splitSettings;
 
 	event GiftyChanged(address indexed gifty);
 	event PiggyBoxFunded(uint256 amount);
 	event TokenWithdrawn(address indexed token, address indexed to, uint256 amount);
 	event ETHWithdrawn(address indexed to, uint256 amount);
+
+	// function changeSplitSettings(SplitSettings memory splitSettings) public onlyOwner {
+	// 	uint256 operationPercentage = splitSettings.mintPercentage + splitSettings.burnPercentage;
+
+	// 	if (splitSettings.router == address(0)) revert Gifty__error_8();
+	// 	if (operationPercentage > 1000) revert Gifty__incorrectPercentage(operationPercentage);
+
+	// 	s_splitSettings = splitSettings;
+	// 	emit SplitSettingsChanged(splitSettings.mintPercentage, splitSettings.burnPercentage);
+	// }
 
 	function changeGifty(address gifty) external onlyOwner {
 		s_gifty = gifty;
@@ -40,7 +58,46 @@ contract PiggyBox is Ownable {
 		emit PiggyBoxFunded(msg.value);
 	}
 
+	// // TODO
+	// function splitCommission() external onlyOwner {}
+
+	// function _splitCommission(address assetToSell) private {
+	// 	SplitSettings memory splitSettings = s_splitSettings;
+	// 	IGiftyToken GFT = IGiftyToken(s_giftyToken);
+
+	// 	GFT.burn();
+	// }
+
+	// function swapExactInputSingle(
+	// 	address router,
+	// 	address tokenIn,
+	// 	address tokenOut,
+	// 	uint256 amountIn
+	// ) private returns (uint256 amountOut) {
+	// 	IERC20Upgradeable(tokenIn).safeApprove(router, amountIn);
+
+	// 	ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+	// 		tokenIn: tokenIn,
+	// 		tokenOut: tokenOut,
+	// 		fee: 3000,
+	// 		recipient: address(this),
+	// 		deadline: block.timestamp,
+	// 		amountIn: amountIn,
+	// 		amountOutMinimum: 0,
+	// 		sqrtPriceLimitX96: 0
+	// 	});
+
+	// 	amountOut = ISwapRouter(router).exactInputSingle(params);
+	// }
+
+	// function getSplitSettings() external view returns (SplitSettings memory) {
+	// 	return s_splitSettings;
+	// }
+
 	function getGiftyAddress() external view returns (address) {
 		return s_gifty;
 	}
 }
+
+// из контракта гифти выводим деньги на пигги, там у пигги есть функция сплита комиссии. ИДЕТ ПРОЦЕНТНЫЙ минт берн и последняя часть отправляется по адресу, который указал овнер
+        

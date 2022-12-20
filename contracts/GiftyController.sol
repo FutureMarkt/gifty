@@ -5,9 +5,10 @@ pragma solidity 0.8.17;
 import {IGiftyEvents, IGiftyErrors} from "./interfaces/Gifty/IGifty.sol";
 import {IGiftyToken} from "./interfaces/IGiftyToken.sol";
 
-/* External contracts interfaces */
+/* External contract interfaces */
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 /* External contracts */
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -362,10 +363,11 @@ contract GiftyController is
 	 * @param amount - number of tokens to be transfered
 	 */
 	function transferToPiggyBoxTokens(
-		address token,
-		uint256 amount
-	) external onlyOwner nonReentrant {
-		_transferAssetCommissionToPiggyBox(token, amount);
+		address[] memory token,
+		uint256[] memory amount
+	) external onlyOwner compareLengths(token.length, amount.length) nonReentrant {
+		for (uint256 i; i < token.length; i++)
+			_transferAssetCommissionToPiggyBox(token[i], amount[i]);
 	}
 
 	/**
@@ -441,9 +443,6 @@ contract GiftyController is
 
 		emit UniswapConfigChanged(pool, anotherTokenInPool, secondsAgo);
 	}
-
-	// TODO
-	function splitCommission() external onlyOwner {}
 
 	/* --------------------Internal functions-------------------- */
 	function _getPriceFeed(address asset) internal view returns (AggregatorV3Interface priceFeed) {
