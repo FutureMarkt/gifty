@@ -6,6 +6,8 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /* External interfaces / libraries */
 import {SafeERC20, IERC20, Address} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
+import {IGiftyToken} from "./interfaces/IGiftyToken.sol";
 
 error PiggyBox__onlyGiftyCanSendETH();
 
@@ -100,4 +102,3 @@ contract PiggyBox is Ownable {
 }
 
 // из контракта гифти выводим деньги на пигги, там у пигги есть функция сплита комиссии. ИДЕТ ПРОЦЕНТНЫЙ минт берн и последняя часть отправляется по адресу, который указал овнер
-        

@@ -33,6 +33,16 @@ describe("Gifty | giftToken", function () {
 			.withArgs(sampleToken);
 	});
 
+	it.only("If tokenToBeGifted equal GFT token - should be reverted", async function () {
+		const { gifty, receiver, giftyToken } = await loadFixture(
+			GiftyFixture
+		);
+
+		await expect(
+			gifty.giftToken(receiver.address, giftyToken.address, 10000)
+		).to.be.revertedWithCustomError(gifty, "Gifty__error_27");
+	});
+
 	it("If gift price to low should be reverted", async function () {
 		const { gifty, receiver, testToken } = await loadFixture(GiftyFixture);
 

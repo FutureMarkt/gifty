@@ -5,6 +5,7 @@
 	"main": "index.js",
 	"scripts": {
 		"test": "npx hardhat test --typecheck",
+		"parallel-test": "npx hardhat test --parallel",
 		"solhint": "solhint --config .solhint.json \"contracts/**.sol\""
 	},
 	"repository": {

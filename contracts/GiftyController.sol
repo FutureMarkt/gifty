@@ -3,12 +3,10 @@ pragma solidity 0.8.17;
 
 /* Interfaces */
 import {IGiftyEvents, IGiftyErrors} from "./interfaces/Gifty/IGifty.sol";
-import {IGiftyToken} from "./interfaces/IGiftyToken.sol";
 
 /* External contract interfaces */
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
-import {ISwapRouter} from "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 
 /* External contracts */
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
