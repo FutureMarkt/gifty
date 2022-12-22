@@ -124,6 +124,4 @@ interface IGiftyErrors {
 
 	/** @notice You are trying to give a GiftyToken via giftToken funciton, please do it via giftTokenWithGFTCommission */
 	error Gifty__error_27();
-
-	error Gifty__incorrectPercentage(uint256 operationPercentage);
 }

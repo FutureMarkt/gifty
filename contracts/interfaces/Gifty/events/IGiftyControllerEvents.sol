@@ -102,6 +102,4 @@ interface IGiftyControllerEvents {
 	 * @param l4 - full commission for t4 < giftPrice
 	 */
 	event ReducedCommissionsChanged(uint256 l1, uint256 l2, uint256 l3, uint256 l4);
-
-	event SplitSettingsChanged(uint256 mintPercentage, uint256 burnPercentage);
 }

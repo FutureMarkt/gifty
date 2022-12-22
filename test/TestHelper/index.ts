@@ -40,9 +40,9 @@ export interface CommissionSettings {
 }
 
 export interface SplitCommission {
-    router: string;
-    burnPercentage: BigNumber;
-    mintPercentage: BigNumber;
+    burnPercentage: number;
+	mintPercentage: number;
+	decimals: number;
 }
 
 export const OneEther: BigNumber = ethers.constants.WeiPerEther;
@@ -69,10 +69,19 @@ export const refundParams: GiftRefundSettings = {
 };
 
 export const spllitCommissionSettings: SplitCommission = {
-    router: ZeroAddress,
-    mintPercentage: BigNumber.from("330"),
-    burnPercentage: BigNumber.from("330"),
+    mintPercentage: 3000,
+	burnPercentage: 0,
+	decimals: 2
+	
 }
+
+export interface SwapSettings {
+	router: string;
+	middleToken: string;
+	swapFeeToMiddleToken: number;
+	swapFeeToGFT: number;
+}
+
 
 export const commissionSettings: CommissionSettings = {
 	thresholds: {

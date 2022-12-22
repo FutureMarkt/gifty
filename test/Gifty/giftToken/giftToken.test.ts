@@ -33,7 +33,7 @@ describe("Gifty | giftToken", function () {
 			.withArgs(sampleToken);
 	});
 
-	it.only("If tokenToBeGifted equal GFT token - should be reverted", async function () {
+	it("If tokenToBeGifted equal GFT token - should be reverted", async function () {
 		const { gifty, receiver, giftyToken } = await loadFixture(
 			GiftyFixture
 		);
