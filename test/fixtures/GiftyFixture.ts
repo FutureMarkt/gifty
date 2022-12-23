@@ -54,9 +54,11 @@ export async function GiftyFixture() {
 	await giftyToken.changeGiftyAddress(gifty.address);
 	await piggyBox.setSettings(
 		gifty.address,
+		giftyToken.address,
 		testHelper.spllitCommissionSettings,
 		{
 			router: router.address,
+			weth9: weth9.address,
 			middleToken: weth9.address,
 			swapFeeToMiddleToken: FeeAmount.MEDIUM,
 			swapFeeToGFT: FeeAmount.MEDIUM,
@@ -230,7 +232,6 @@ async function piggyBoxFixture(
 	// Deploy piggyBox
 	const piggyBox: typechain.PiggyBox = (await upgrades.deployProxy(
 		new typechain.PiggyBox__factory(owner),
-		[giftyToken.address],
 		{ kind: "uups" }
 	)) as typechain.PiggyBox;
 
