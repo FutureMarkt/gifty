@@ -10,6 +10,7 @@ async function splitEarnedCommissionFixture() {
 	const { gifty, receiver, piggyBox, ...params } = await loadFixture(
 		GiftyFixture
 	);
+
 	const amount: BigNumber = ethers.utils.parseEther("1000");
 
 	await gifty.giftETH(receiver.address, amount, {
@@ -45,11 +46,12 @@ describe("PiggyBox | splitEarnedCommission", function () {
 		).to.be.revertedWith("Ownable: caller is not the owner");
 	});
 
-	it.only("Caller not the owner should be reverted", async function () {
+	it("Caller not the owner should be reverted", async function () {
 		const { piggyBox, tokensToBeSwapped, owner } = await loadFixture(
 			splitEarnedCommissionFixture
 		);
 
+		// TODO
 		await piggyBox.splitEarnedCommission(tokensToBeSwapped, owner.address);
 	});
 });
