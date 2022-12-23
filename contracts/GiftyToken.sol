@@ -1,86 +1,85 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+/* Contracts */
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {ERC20Upgradeable, AddressUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
 
-/**
- * @notice This error will be returned if a function is called that is only available to the Gifty contract,
- * but the caller is not.
- */
-error GiftyToken__OnlyAGiftyContractCanPerformThisAction();
+///  @notice Will return in case of an attempt to access a function that is only available to PiggyBox
+error GiftyToken__onlyPiggyBox();
 
-/**
- * The error will be returned when trying to change the address of the Gifty contract
- * to an address that is not a contract.
- */
-error GiftyToken__ChangingTheGiftyContractAddressToANonContractAddress();
+/// @notice Will return when trying to change PiggyBox to a zero address
+error GiftyToken__notAContract();
 
-/**
- * @author FutureMarkt
- * @title TODO
- */
-contract GiftyToken is ERC20, Ownable {
-	/// @notice Gifty contract address
-	address private s_gifty;
+/// @author FutureMarkt
+contract GiftyToken is ERC20Upgradeable, OwnableUpgradeable, UUPSUpgradeable {
+	// PiggyBox
+	address private s_piggyBox;
 
 	/**
-	 * @notice The event will be emitted when the address of the Gifty is changed
-	 * @param newGiftyAddress - new Gifty address
+	 * @notice Emmited when PiggyBox changed.
+	 * @param piggyBox - new PiggyBox
 	 */
+	event PiggyBoxChanged(address indexed piggyBox);
 
-	event GiftyAddressChanged(address indexed newGiftyAddress);
-
-	// TODO: will be changed to upgradeable version
-	constructor(address initialSupplyReceiver, uint256 initialSupply) ERC20("GiftyToken", "GFT") {
-		_mint(initialSupplyReceiver, initialSupply);
-	}
-
-	/// @notice Modifier of access to functions that are available only to the Gifty contract
-	modifier onlyGiftyContract() {
-		if (msg.sender != s_gifty) revert GiftyToken__OnlyAGiftyContractCanPerformThisAction();
+	/// @notice Modifier of access to functions that are available only to the PiggyBox contract
+	modifier onlyPiggyBox() {
+		if (msg.sender != s_piggyBox) revert GiftyToken__onlyPiggyBox();
 		_;
 	}
 
+	function initialize(
+		address initialSupplyReceiver,
+		uint256 initialSupply
+	) external initializer {
+		__UUPSUpgradeable_init();
+		__Ownable_init();
+		__ERC20_init("GiftyToken", "GFT");
+
+		_mint(initialSupplyReceiver, initialSupply);
+	}
+
 	/**
-	 * @notice Creation of new tokens. The function is only available to the Gifty contract.
+	 * @notice Creation of new tokens. The function is only available to the PiggyBox contract.
 	 *
 	 * @param to: recipient's address
 	 * @param amount: number of tokens to be created
 	 */
-	function mint(address to, uint256 amount) external onlyGiftyContract {
+	function mint(address to, uint256 amount) external onlyPiggyBox {
 		_mint(to, amount);
 	}
 
 	/**
-	 * @notice Burning tokens from a specific address. The function is only available to the Gifty contract.
+	 * @notice Burning tokens from a specific address. The function is only available to the PiggyBox contract.
 	 *
 	 * @param from: the address from which the tokens will be debited
 	 * @param amount: number of tokens to be debited
 	 */
-	function burn(address from, uint256 amount) external onlyGiftyContract {
+	function burn(address from, uint256 amount) external onlyPiggyBox {
 		_burn(from, amount);
 	}
 
 	/**
-	 * @notice Changes the address of the Gifty contract in the token contract.
+	 * @notice Changes the address of the PiggyBox contract in the token contract.
 	 * The function is available only to the contract owner.
 	 *
-	 * @param newGiftyAddress: address of new Gifty contract
+	 * @param piggyBox: address of new PiggyBox contract
 	 */
-	function changeGiftyAddress(address newGiftyAddress) external onlyOwner {
-		if (newGiftyAddress.code.length == 0)
-			revert GiftyToken__ChangingTheGiftyContractAddressToANonContractAddress();
+	function changePiggyBox(address piggyBox) external onlyOwner {
+		if (!AddressUpgradeable.isContract(piggyBox)) revert GiftyToken__notAContract();
 
-		s_gifty = newGiftyAddress;
-		emit GiftyAddressChanged(newGiftyAddress);
+		s_piggyBox = piggyBox;
+		emit PiggyBoxChanged(piggyBox);
 	}
 
 	/**
-	 * @notice The function of getting the Gifty address
-	 * @return address: address of the Gifty contract
+	 * @notice The function of getting the PiggyBox address
+	 * @return address: address of the PiggyBox contract
 	 */
-	function getGiftyAddress() external view returns (address) {
-		return s_gifty;
+	function getPiggyBox() external view returns (address) {
+		return s_piggyBox;
 	}
+
+	function _authorizeUpgrade(address newImplementation) internal virtual override onlyOwner {}
 }

@@ -1,7 +1,7 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
-import { spllitCommissionSettings, ZeroAddress } from "../TestHelper";
+import { spllitCommissionSettings } from "../TestHelper";
 import { FeeAmount } from "../fixtures/createPool";
 
 describe("PiggyBox | InitializeSettings", function () {
@@ -12,11 +12,26 @@ describe("PiggyBox | InitializeSettings", function () {
 		expect(ownerFromContract).eq(owner.address);
 	});
 
+	it("Initialize must be called once", async function () {
+		const { piggyBox, owner } = await loadFixture(GiftyFixture);
+
+		await expect(piggyBox.initialize()).to.be.revertedWith(
+			"Initializable: contract is already initialized"
+		);
+	});
+
 	it("Gifty setted correctly", async function () {
 		const { piggyBox, gifty } = await loadFixture(GiftyFixture);
 
-		const giftyFromContract: string = await piggyBox.getGiftyAddress();
+		const giftyFromContract: string = await piggyBox.getGifty();
 		expect(giftyFromContract).eq(gifty.address);
+	});
+
+	it("GiftyToken setted correctly", async function () {
+		const { piggyBox, giftyToken } = await loadFixture(GiftyFixture);
+
+		const giftyTokenFromContract: string = await piggyBox.getGiftyToken();
+		expect(giftyTokenFromContract).eq(giftyToken.address);
 	});
 
 	it("SplitSettings setted correctly", async function () {

@@ -10,6 +10,7 @@ interface IPiggyBoxEvents {
 	event SwapSettingsChanged(
 		address indexed router,
 		address indexed weth9,
+		address middleToken,
 		uint256 swapRateToMiddleToken,
 		uint256 swapRateToGFT
 	);

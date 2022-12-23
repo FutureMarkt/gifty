@@ -42,9 +42,9 @@ interface IPiggyBox is IPiggyBoxErrors, IPiggyBoxEvents {
 		address leftoversTo
 	) external;
 
-	function getGiftyAddress() external view returns (address);
+	function getGifty() external view returns (address);
 
-	function getGiftyTokenAddress() external view returns (address);
+	function getGiftyToken() external view returns (address);
 
 	function getSplitSettings() external view returns (SplitSettings memory);
 

@@ -77,6 +77,7 @@ export const spllitCommissionSettings: SplitCommission = {
 
 export interface SwapSettings {
 	router: string;
+	weth9: string;
 	middleToken: string;
 	swapFeeToMiddleToken: number;
 	swapFeeToGFT: number;

@@ -1,66 +1,76 @@
-// import { expect } from "chai";
-// import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-// import { GiftyFixture } from "../fixtures/GiftyFixture";
-// import { spllitCommissionSettings, ZeroAddress } from "../TestHelper";
+import { expect } from "chai";
+import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
+import { spllitCommissionSettings, SplitCommission } from "../TestHelper";
 
-// describe.only("GiftyController | changeSpllitSettings", function () {
-// 	it("Caller not the owner should be reverted", async function () {
-// 		const { gifty, signers } = await loadFixture(GiftyFixture);
+describe("PiggyBox | changeSpllitSettings", function () {
+	it("Caller not the owner should be reverted", async function () {
+		const { piggyBox, signers } = await loadFixture(GiftyFixture);
 
-// 		await expect(
-// 			gifty
-// 				.connect(signers[0])
-// 				.changeSplitSettings(spllitCommissionSettings)
-// 		).to.be.revertedWith("Ownable: caller is not the owner");
-// 	});
+		await expect(
+			piggyBox
+				.connect(signers[0])
+				.changeSplitSettings(spllitCommissionSettings)
+		).to.be.revertedWith("Ownable: caller is not the owner");
+	});
 
-// 	it("If totalAmount gt 1000 - revert", async function () {
-// 		const { gifty } = await loadFixture(GiftyFixture);
+	it("If totalPercantage gt max amount - revert", async function () {
+		const { piggyBox } = await loadFixture(GiftyFixture);
 
-// 		await expect(
-// 			gifty.changeSplitSettings({
-// 				mintPercentage: 1000,
-// 				burnPercentage: 1000,
-// 			})
-// 		)
-// 			.to.be.revertedWithCustomError(gifty, "Gifty__incorrectPercentage")
-// 			.withArgs(2000);
-// 	});
+		await expect(
+			piggyBox.changeSplitSettings({
+				mintPercentage: 10001,
+				burnPercentage: 0,
+				decimals: 2,
+			})
+		)
+			.to.be.revertedWithCustomError(
+				piggyBox,
+				"PiggyBox__incorrectPercentage"
+			)
+			.withArgs(10001);
+	});
 
-// 	it("If router address is address(0) - revert", async function () {
-// 		const { gifty } = await loadFixture(GiftyFixture);
+	it("If decimals is zero - revert", async function () {
+		const { piggyBox } = await loadFixture(GiftyFixture);
 
-// 		await expect(
-// 			gifty.changeSplitSettings({
-// 				router: ZeroAddress,
-// 				mintPercentage: 250,
-// 				burnPercentage: 250,
-// 			})
-// 		)
-// 			.to.be.revertedWithCustomError(gifty, "Gifty__incorrectPercentage")
-// 			.withArgs(2000);
-// 	});
+		await expect(
+			piggyBox.changeSplitSettings({
+				mintPercentage: 3000,
+				burnPercentage: 0,
+				decimals: 0,
+			})
+		).to.be.revertedWithCustomError(piggyBox, "PiggyBox__decimalsIsZero");
+	});
 
-// 	it("дд changed split settings", async function () {
-// 		const { gifty } = await loadFixture(GiftyFixture);
+	it("All props changed correctly", async function () {
+		const { piggyBox } = await loadFixture(GiftyFixture);
 
-// 		await gifty.changeSplitSettings(spllitCommissionSettings);
+		const newSplitSettings: SplitCommission = {
+			mintPercentage: 0,
+			burnPercentage: 1500,
+			decimals: 2,
+		};
 
-// 		const { burnPercentage, mintPercentage } =
-// 			await gifty.getSplitSettings();
+		await piggyBox.changeSplitSettings(newSplitSettings);
 
-// 		expect(burnPercentage).eq(spllitCommissionSettings.burnPercentage);
-// 		expect(mintPercentage).eq(spllitCommissionSettings.mintPercentage);
-// 	});
+		const { burnPercentage, mintPercentage, decimals } =
+			await piggyBox.getSplitSettings();
 
-// 	it("SplitSettingsChanged should be emmited after setting value", async function () {
-// 		const { gifty } = await loadFixture(GiftyFixture);
+		expect(burnPercentage).eq(newSplitSettings.burnPercentage);
+		expect(mintPercentage).eq(newSplitSettings.mintPercentage);
+		expect(decimals).eq(newSplitSettings.decimals);
+	});
 
-// 		await expect(gifty.changeSplitSettings(spllitCommissionSettings))
-// 			.to.emit(gifty, "SplitSettingsChanged")
-// 			.withArgs(
-// 				spllitCommissionSettings.mintPercentage,
-// 				spllitCommissionSettings.burnPercentage
-// 			);
-// 	});
-// });
+	it("SplitSettingsChanged should be emmited after setting value", async function () {
+		const { piggyBox } = await loadFixture(GiftyFixture);
+
+		await expect(piggyBox.changeSplitSettings(spllitCommissionSettings))
+			.to.emit(piggyBox, "SplitSettingsChanged")
+			.withArgs(
+				spllitCommissionSettings.mintPercentage,
+				spllitCommissionSettings.burnPercentage,
+				spllitCommissionSettings.decimals
+			);
+	});
+});

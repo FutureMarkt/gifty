@@ -1,9 +1,9 @@
 import { ethers, upgrades } from "hardhat";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+import type { BigNumber } from "ethers";
 
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-import * as dataHelper from "../../dataHelper";
 import * as testHelper from "../TestHelper";
 import * as typechain from "../../typechain-types";
 
@@ -24,21 +24,18 @@ export async function GiftyFixture() {
 	const { testToken, anotherTestToken } = await testTokensFixture(owner);
 
 	// Deploy gifty token
-	const giftyToken: typechain.GiftyToken =
-		await new typechain.GiftyToken__factory(owner).deploy(
-			dataHelper.initialSupplyReceiver,
-			dataHelper.initialSupply
-		);
+	const giftyToken: typechain.GiftyToken = await giftyTokenFixture(
+		owner,
+		owner.address,
+		ethers.utils.parseEther("1000000")
+	);
 
 	await initializeUniswapPool(uniswapPoolMock, testToken, giftyToken);
 
 	const initialTokens: string[] = [testToken.address];
 	const initialAggregatorsAddress: string[] = [tokenMockAggregator.address];
 
-	const piggyBox: typechain.PiggyBox = await piggyBoxFixture(
-		owner,
-		giftyToken
-	);
+	const piggyBox: typechain.PiggyBox = await piggyBoxFixture(owner);
 
 	const gifty: typechain.Gifty = await deployGifty(
 		owner,
@@ -51,7 +48,7 @@ export async function GiftyFixture() {
 	);
 
 	// Changing the address of the gifty in the token contract and piggyBox
-	await giftyToken.changeGiftyAddress(gifty.address);
+	await giftyToken.changePiggyBox(piggyBox.address);
 	await piggyBox.setSettings(
 		gifty.address,
 		giftyToken.address,
@@ -225,10 +222,7 @@ async function deployGifty(
 	return gifty;
 }
 
-async function piggyBoxFixture(
-	owner: SignerWithAddress,
-	giftyToken: typechain.GiftyToken
-) {
+async function piggyBoxFixture(owner: SignerWithAddress) {
 	// Deploy piggyBox
 	const piggyBox: typechain.PiggyBox = (await upgrades.deployProxy(
 		new typechain.PiggyBox__factory(owner),
@@ -236,4 +230,16 @@ async function piggyBoxFixture(
 	)) as typechain.PiggyBox;
 
 	return piggyBox;
+}
+
+async function giftyTokenFixture(
+	owner: SignerWithAddress,
+	initialSupplyReceiver: string,
+	initialSupply: BigNumber
+) {
+	return (await upgrades.deployProxy(
+		new typechain.GiftyToken__factory(owner),
+		[initialSupplyReceiver, initialSupply],
+		{ kind: "uups" }
+	)) as typechain.GiftyToken;
 }

@@ -1,4 +1,4 @@
-import { GiftyTokenFixture } from "./fixtures/GiftyTokenFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
 import { BigNumber } from "ethers";
@@ -13,7 +13,7 @@ const amount: BigNumber = OneEther;
 
 describe("GiftyToken | burn", function () {
 	it("Not Gifty account can't burn tokens", async function () {
-		const { signers, giftyToken } = await loadFixture(GiftyTokenFixture);
+		const { signers, giftyToken } = await loadFixture(GiftyFixture);
 
 		await expect(
 			giftyToken.burn(signers[0].address, amount)

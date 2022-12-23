@@ -1,4 +1,4 @@
-import { GiftyTokenFixture } from "./fixtures/GiftyTokenFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
 import { BigNumber } from "ethers";
@@ -14,13 +14,13 @@ const amount: BigNumber = OneEther;
 
 describe("GiftyToken | mint", function () {
 	it("Not Gifty account can't mint tokens", async function () {
-		const { signers, giftyToken } = await loadFixture(GiftyTokenFixture);
+		const { signers, giftyToken } = await loadFixture(GiftyFixture);
 
 		await expect(
 			giftyToken.mint(signers[0].address, amount)
 		).to.be.revertedWithCustomError(
 			giftyToken,
-			"GiftyToken__OnlyAGiftyContractCanPerformThisAction"
+			"GiftyToken__onlyPiggyBox"
 		);
 	});
 

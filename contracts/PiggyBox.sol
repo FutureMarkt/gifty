@@ -77,6 +77,11 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		changeSwapSettings(swapSettings);
 	}
 
+	function changeGifty(address gifty) public onlyOwner notZeroAddress(gifty) {
+		s_gifty = gifty;
+		emit GiftyChanged(gifty);
+	}
+
 	function changeGiftyToken(
 		address newGiftyToken
 	) public onlyOwner notZeroAddress(newGiftyToken) {
@@ -84,17 +89,12 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		emit GiftyTokenChanged(newGiftyToken);
 	}
 
-	function changeGifty(address gifty) public onlyOwner notZeroAddress(gifty) {
-		s_gifty = gifty;
-		emit GiftyChanged(gifty);
-	}
-
 	function changeSplitSettings(SplitSettings memory splitSettings) public onlyOwner {
+		if (splitSettings.decimals == 0) revert PiggyBox__decimalsIsZero();
+
 		uint256 operationPercentage = splitSettings.mintPercentage + splitSettings.burnPercentage;
 		if (operationPercentage > (100 * (10 ** splitSettings.decimals)))
 			revert PiggyBox__incorrectPercentage(operationPercentage);
-
-		if (splitSettings.decimals == 0) revert PiggyBox__decimalsIsZero();
 
 		s_splitSettings = splitSettings;
 		emit SplitSettingsChanged(
@@ -117,8 +117,9 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		emit SwapSettingsChanged(
 			swapSettings.router,
 			swapSettings.weth9,
-			swapSettings.swapFeeToMiddleToken,
-			swapSettings.swapFeeToGFT
+			swapSettings.middleToken,
+			swapSettings.swapFeeToGFT,
+			swapSettings.swapFeeToMiddleToken
 		);
 	}
 
@@ -228,7 +229,6 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 			maxPercantage - totalPercantageToOperation,
 			s_splitSettings.decimals
 		);
-
 		// Sending leftovers to the target address
 		IERC20Upgradeable(GFT).safeTransfer(leftoversTo, sendAmount);
 	}
@@ -312,11 +312,11 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 
 	/* --------------------Getter functions-------------------- */
 
-	function getGiftyAddress() external view returns (address) {
+	function getGifty() external view returns (address) {
 		return s_gifty;
 	}
 
-	function getGiftyTokenAddress() external view returns (address) {
+	function getGiftyToken() external view returns (address) {
 		return s_giftyToken;
 	}
 

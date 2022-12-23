@@ -1,5 +1,5 @@
 // Fixtures
-import { GiftyTokenFixture } from "./fixtures/GiftyTokenFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
 // Types || classes
@@ -13,7 +13,7 @@ import { initialSupplyReceiver, initialSupply } from "../../dataHelper";
 
 describe("GiftyToken | Check deployment configuration", function () {
 	it("Owner setted correctly", async function () {
-		const { signers, giftyToken } = await loadFixture(GiftyTokenFixture);
+		const { signers, giftyToken } = await loadFixture(GiftyFixture);
 
 		const ownerAddress: string = signers[0].address;
 		const contractOwner: string = await giftyToken.owner();
@@ -22,7 +22,7 @@ describe("GiftyToken | Check deployment configuration", function () {
 	});
 
 	it("Token name is correct", async function () {
-		const { giftyToken } = await loadFixture(GiftyTokenFixture);
+		const { giftyToken } = await loadFixture(GiftyFixture);
 
 		const giftyTokenName: string = "GiftyToken";
 		const giftyNameInContract: string = await giftyToken.name();
@@ -31,7 +31,7 @@ describe("GiftyToken | Check deployment configuration", function () {
 	});
 
 	it("Token symbol is correct", async function () {
-		const { giftyToken } = await loadFixture(GiftyTokenFixture);
+		const { giftyToken } = await loadFixture(GiftyFixture);
 
 		const giftyTokenSymbol: string = "GFT";
 		const giftySymbolInContract: string = await giftyToken.symbol();
@@ -40,7 +40,7 @@ describe("GiftyToken | Check deployment configuration", function () {
 	});
 
 	it("InitialSupply received correctly", async function () {
-		const { giftyToken } = await loadFixture(GiftyTokenFixture);
+		const { giftyToken } = await loadFixture(GiftyFixture);
 
 		const receiverBalance: BigNumber = await giftyToken.balanceOf(
 			initialSupplyReceiver
