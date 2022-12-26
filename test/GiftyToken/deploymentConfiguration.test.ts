@@ -40,9 +40,7 @@ describe("GiftyToken | Deployment configuration", function () {
 	});
 
 	it("InitialSupply received correctly", async function () {
-		const { owner, receiver, giftyToken } = await loadFixture(
-			GiftyFixture
-		);
+		const { owner, receiver } = await loadFixture(GiftyFixture);
 
 		const initialAmount: BigNumber = ethers.utils.parseEther("1000000");
 
