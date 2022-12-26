@@ -1,8 +1,11 @@
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
-import { time } from "@nomicfoundation/hardhat-network-helpers";
 import bn from "bignumber.js";
 import { BigNumber, BigNumberish } from "ethers";
-import { MockTimeNonfungiblePositionManager } from "../../typechain-types";
+
+import { ethers } from "hardhat";
+import { time } from "@nomicfoundation/hardhat-network-helpers";
+
+import type { MockTimeNonfungiblePositionManager } from "../../typechain-types";
+import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 
@@ -51,8 +54,10 @@ export async function createPool(
 		tokenAddressA,
 		tokenAddressB,
 		FeeAmount.MEDIUM,
-		encodePriceSqrt(1, 1)
+		encodePriceSqrt(100005, 100000) // we don't want to cross any ticks
 	);
+
+	const thousand: BigNumber = ethers.utils.parseEther("1000");
 
 	const liquidityParams = {
 		token0: tokenAddressA,
@@ -61,8 +66,8 @@ export async function createPool(
 		tickLower: getMinTick(TICK_SPACINGS[FeeAmount.MEDIUM]),
 		tickUpper: getMaxTick(TICK_SPACINGS[FeeAmount.MEDIUM]),
 		recipient: signer.address,
-		amount0Desired: 1000000,
-		amount1Desired: 1000000,
+		amount0Desired: thousand,
+		amount1Desired: thousand,
 		amount0Min: 0,
 		amount1Min: 0,
 		deadline: (await time.latest()) + 1,

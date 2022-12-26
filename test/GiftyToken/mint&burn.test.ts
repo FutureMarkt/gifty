@@ -1,17 +1,16 @@
-import { GiftyFixture } from "../../fixtures/GiftyFixture";
+import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 
 import { BigNumber } from "ethers";
 import {
 	EthAddress,
-	OneEther,
 	SplitCommission,
 	spllitCommissionSettings,
-} from "../../TestHelper";
+} from "../TestHelper";
 
 import { expect } from "chai";
 import { ethers } from "hardhat";
-import { Gifty, PiggyBox } from "../../../typechain-types";
+import { Gifty, PiggyBox } from "../../typechain-types";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 
 const amount: BigNumber = ethers.utils.parseEther("1000");
@@ -84,7 +83,7 @@ describe("GiftyToken | mint/burn", function () {
 		expect(balanceAfter).gt(balanceBefore);
 	});
 
-	it.only("Tokens were successfully burned", async function () {
+	it("Tokens were successfully burned", async function () {
 		const { gifty, receiver, piggyBox, giftyToken } = await loadFixture(
 			GiftyFixture
 		);

@@ -232,7 +232,7 @@ async function piggyBoxFixture(owner: SignerWithAddress) {
 	return piggyBox;
 }
 
-async function giftyTokenFixture(
+export async function giftyTokenFixture(
 	owner: SignerWithAddress,
 	initialSupplyReceiver: string,
 	initialSupply: BigNumber
