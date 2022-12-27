@@ -62,17 +62,14 @@ export async function GiftyFixture() {
 		}
 	);
 
-	await testToken.approve(gifty.address, ethers.constants.MaxUint256);
-	await giftyToken.approve(gifty.address, ethers.constants.MaxUint256);
-	await giftyToken.approve(nft.address, ethers.constants.MaxUint256);
-	await weth9.approve(nft.address, ethers.constants.MaxUint256);
+	await testHelper.maxApprove(testToken, gifty.address);
+	await testHelper.maxApprove(giftyToken, gifty.address);
 
-	await weth9.approve(router.address, ethers.constants.MaxUint256);
-	await giftyToken.approve(router.address, ethers.constants.MaxUint256);
-	await testToken.approve(router.address, ethers.constants.MaxUint256);
+	await testHelper.maxApprove(weth9, router.address);
+	await testHelper.maxApprove(giftyToken, router.address);
+	await testHelper.maxApprove(testToken, router.address);
 
-	await weth9.deposit({ value: ethers.utils.parseEther("1000") });
-
+	await weth9.deposit({ value: ethers.utils.parseEther("5000") });
 	await createPool(owner, weth9.address, giftyToken.address, nft);
 
 	const attacker: typechain.Attacker = await new typechain.Attacker__factory(

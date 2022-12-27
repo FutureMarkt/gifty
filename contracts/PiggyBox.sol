@@ -203,11 +203,11 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 			splitSettings.mintPercentage;
 
 		if (totalPercantageToOperation != 0) {
-			if (splitSettings.burnPercentage != 0) {
+			if (splitSettings.mintPercentage == 0) {
 				burnAmount = _calculatePercentage(
 					balance,
 					splitSettings.burnPercentage,
-					s_splitSettings.decimals
+					splitSettings.decimals
 				);
 
 				IGiftyToken(GFT).burn(address(this), burnAmount);
@@ -215,20 +215,21 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 				mintAmount = _calculatePercentage(
 					balance,
 					splitSettings.mintPercentage,
-					s_splitSettings.decimals
+					splitSettings.decimals
 				);
 
 				IGiftyToken(GFT).mint(address(this), mintAmount);
 			}
 		}
 
-		uint256 maxPercantage = (100 * (10 ** s_splitSettings.decimals));
+		uint256 maxPercantage = (100 * (10 ** splitSettings.decimals));
 
 		sendAmount = _calculatePercentage(
 			balance,
 			maxPercantage - totalPercantageToOperation,
-			s_splitSettings.decimals
+			splitSettings.decimals
 		);
+
 		// Sending leftovers to the target address
 		IERC20Upgradeable(GFT).safeTransfer(leftoversTo, sendAmount);
 	}

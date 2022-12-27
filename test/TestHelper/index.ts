@@ -1,6 +1,11 @@
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
-import { MockV3Aggregator } from "../../typechain-types";
+import {
+	IERC20,
+	IERC20__factory,
+	MockV3Aggregator,
+} from "../../typechain-types";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 
 export interface GiftRefundSettings {
 	refundGiftWithCommissionThreshold: number;
@@ -133,4 +138,13 @@ export async function getPriceOfExactETHAmount(
 ) {
 	const ethPrice: BigNumber = await getConvertedPrice(aggregator);
 	return ethPrice.mul(amount).div(OneEther);
+}
+
+export async function maxApprove( token: string | IERC20, approveTo: string, signer?: SignerWithAddress) {
+	let tokenContract: IERC20 =
+		typeof token == "string"
+			? (new ethers.Contract(token, IERC20__factory.abi, signer) as IERC20)
+			: token;
+
+	await tokenContract.approve(approveTo, ethers.constants.MaxUint256);
 }

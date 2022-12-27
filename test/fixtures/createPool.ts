@@ -4,8 +4,10 @@ import { BigNumber, BigNumberish } from "ethers";
 import { ethers } from "hardhat";
 import { time } from "@nomicfoundation/hardhat-network-helpers";
 
-import type { MockTimeNonfungiblePositionManager } from "../../typechain-types";
+import { MockTimeNonfungiblePositionManager } from "../../typechain-types";
 import type { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
+
+import { maxApprove } from "../TestHelper";
 
 bn.config({ EXPONENTIAL_AT: 999999, DECIMAL_PLACES: 40 });
 
@@ -49,6 +51,9 @@ export async function createPool(
 ) {
 	if (tokenAddressA.toLowerCase() > tokenAddressB.toLowerCase())
 		[tokenAddressA, tokenAddressB] = [tokenAddressB, tokenAddressA];
+
+	await maxApprove(tokenAddressA, nft.address, signer);
+	await maxApprove(tokenAddressB, nft.address, signer);
 
 	await nft.createAndInitializePoolIfNecessary(
 		tokenAddressA,
