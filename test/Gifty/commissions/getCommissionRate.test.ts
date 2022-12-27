@@ -1,7 +1,5 @@
 import { expect } from "chai";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
-import { anyUint } from "@nomicfoundation/hardhat-chai-matchers/withArgs";
-
 import { GiftyFixture } from "../../fixtures/GiftyFixture";
 import { commissionSettings } from "../../TestHelper";
 
@@ -19,7 +17,7 @@ describe("Gifty | getCommissionRate", function () {
 		const giftPriceInUSD: number = 1;
 
 		await expect(gifty.getCommissionRate(giftPriceInUSD))
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_9")
+			.to.be.revertedWithCustomError(gifty, "Gifty__tooLowGiftPrice")
 			.withArgs(giftPriceInUSD, t1);
 	});
 

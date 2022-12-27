@@ -81,7 +81,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 
 	// Check that the giver is not giving a gift to himself.
 	modifier validateReceiver(address receiver) {
-		if (receiver == msg.sender) revert Gifty__error_11();
+		if (receiver == msg.sender) revert Gifty__giverEqReceiver();
 		_;
 	}
 
@@ -165,7 +165,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 		address token,
 		uint256 amount
 	) external validateReceiver(receiver) {
-		if (token == s_giftyToken) revert Gifty__error_27();
+		if (token == s_giftyToken) revert Gifty__GFTTokenFromSimpleGift();
 		_giftToken(receiver, token, amount, TypeOfCommission.TOKEN);
 	}
 
@@ -198,13 +198,13 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 	) external nonReentrant {
 		Gift memory currentGift = s_allGifts[giftId];
 
-		if (currentGift.receiver != address(0)) revert Gifty__error_25();
+		if (currentGift.receiver != address(0)) revert Gifty__hasReceiver();
 
 		bytes32 structHash = hashAssignReceiverStruct(s_assignReceiverType, msg.sender, giftId);
 		bytes32 digest = _hashTypedDataV4(structHash);
 
 		address potentialGiver = ECDSAUpgradeable.recover(digest, v, r, s);
-		if (currentGift.giver != potentialGiver) revert Gifty__error_26();
+		if (currentGift.giver != potentialGiver) revert Gifty__recoveredAddressDoesNotMatch();
 
 		s_allGifts[giftId].receiver = msg.sender;
 
@@ -257,7 +257,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 			);
 		}
 		// else revert (refundGiftWithCommissionThreshold < diff < freeRefundGiftThreshold)
-		else revert Gifty__error_15();
+		else revert Gifty__temporarilyUnavailable();
 
 		_sendGift(currentGift.giftType, currentGift.asset, refundAmount);
 
@@ -267,7 +267,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 
 	function claimSurplusesETH() external {
 		uint256 surpluses = s_commissionSurplusesETH[msg.sender];
-		if (surpluses == 0) revert Gifty__error_7();
+		if (surpluses == 0) revert Gifty__zeroOverpaidAmount();
 
 		delete s_commissionSurplusesETH[msg.sender];
 		payable(msg.sender).sendValue(surpluses);
@@ -340,7 +340,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 		uint256 assetAmount,
 		uint256 commissionRate
 	) private returns (uint256 commissionCharged) {
-		if (msg.value < assetAmount) revert Gifty__error_5(assetAmount, msg.value);
+		if (msg.value < assetAmount) revert Gifty__amountLtValue(assetAmount, msg.value);
 
 		/* 
                 When giving ETH and paying commission in ETH - 
@@ -358,7 +358,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 
 		// Delta less commission? If so, revert.
 		if (commissionPaid < commissionShouldBePaid)
-			revert Gifty__error_3(commissionPaid, commissionShouldBePaid);
+			revert Gifty__commissionNotPayed(commissionPaid, commissionShouldBePaid);
 		/*
                 Delta more commission? If yes, then let the user then withdraw it.
 
@@ -447,9 +447,9 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 		bool isClaimed,
 		bool isRefunded
 	) internal view {
-		if (unpacker != msg.sender) revert Gifty__error_12();
-		else if (isClaimed) revert Gifty__error_13();
-		else if (isRefunded) revert Gifty__error_14();
+		if (unpacker != msg.sender) revert Gifty__accessDenied();
+		else if (isClaimed) revert Gifty__alreadyClaimed();
+		else if (isRefunded) revert Gifty__alreadyRefunded();
 	}
 
 	// Universal sending of a gift depending on its type.
@@ -502,7 +502,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 		uint256 amount,
 		TypeOfCommission commissionType
 	) private {
-		if (!s_tokenInfo[token].isTokenAllowed) revert Gifty__error_16(token);
+		if (!s_tokenInfo[token].isTokenAllowed) revert Gifty__notSupported(token);
 
 		uint256 giftPriceInUSD = _getPriceOfAsset(token, amount);
 
@@ -552,7 +552,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 			abi.encodeWithSelector(IERC20Upgradeable.balanceOf.selector, address(this))
 		);
 
-		if (!success || data.length < 32) revert Gifty__error_19();
+		if (!success || data.length < 32) revert Gifty__balanceReceivingError();
 		return abi.decode(data, (uint256));
 	}
 
@@ -594,7 +594,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 			tokenOut
 		);
 
-		if (amountOut == 0) revert Gifty__error_22();
+		if (amountOut == 0) revert Gifty__zeroPriceFromOracle();
 
 		return amountOut;
 	}
@@ -621,7 +621,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 		uint256 commissionRate
 	) internal pure returns (uint256) {
 		uint256 minimumValue = 10000;
-		if (amount < minimumValue) revert Gifty__error_2(amount, minimumValue);
+		if (amount < minimumValue) revert Gifty__ltMinValue(amount, minimumValue);
 
 		uint256 decimals = 2;
 		return (amount * commissionRate) / (100 * 10 ** decimals);
@@ -648,7 +648,7 @@ contract Gifty is GiftyController, EIP712Upgradeable {
 
 		// price < threshold 1
 		if (settings.thresholds.t1.to18Decimals(0) > giftPriceInUSD)
-			revert Gifty__error_9(giftPriceInUSD, settings.thresholds.t1.to18Decimals(0));
+			revert Gifty__tooLowGiftPrice(giftPriceInUSD, settings.thresholds.t1.to18Decimals(0));
 		// threshold 1 < price < threshold 2
 		else if (giftPriceInUSD < settings.thresholds.t2.to18Decimals(0))
 			return (settings.commissions.full.l1, settings.commissions.reduced.l1);

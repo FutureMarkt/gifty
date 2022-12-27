@@ -22,7 +22,7 @@ describe("Gifty | giftETH", function () {
 			gifty.giftETH(owner.address, giftAmount, {
 				value: OneEtherGiftWithCommission,
 			})
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_11");
+		).to.be.revertedWithCustomError(gifty, "Gifty__giverEqReceiver");
 	});
 
 	it("Giver assigned correctly | owner", async function () {

@@ -28,7 +28,7 @@ describe("GiftyController | transferToPiggyBoxTokens", function () {
 
 		await expect(
 			gifty.transferToPiggyBoxTokens([testToken.address], [0])
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("Given amount should be transfered to the PiggyBox contract", async function () {
@@ -123,7 +123,10 @@ describe("GiftyController | transferToPiggyBoxTokens", function () {
 				[1]
 			)
 		)
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_10")
+			.to.be.revertedWithCustomError(
+				gifty,
+				"Gifty__theLengthsDoNotMatch"
+			)
 			.withArgs(2, 1);
 	});
 

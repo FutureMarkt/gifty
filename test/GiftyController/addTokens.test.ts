@@ -23,7 +23,7 @@ describe("GiftyController | addTokens", function () {
 
 		await expect(
 			gifty.addTokens([ZeroAddress], [NonZeroAddress])
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_0");
+		).to.be.revertedWithCustomError(gifty, "Gifty__notAnContract");
 	});
 
 	it("After successfully adding the token, the status should be true", async function () {
@@ -44,7 +44,7 @@ describe("GiftyController | addTokens", function () {
 
 		await expect(
 			gifty.addTokens([sampleToken], [NonZeroAddress])
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_24");
+		).to.be.revertedWithCustomError(gifty, "Gifty__alreadyAdded");
 	});
 
 	it("After successfully adding the token, amount of allowed tokens should be increased", async function () {
@@ -197,7 +197,10 @@ describe("GiftyController | addTokens", function () {
 		tokensExample.push(NonZeroAddress);
 
 		await expect(gifty.addTokens(tokensExample, priceFeedsForTokens))
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_10")
+			.to.be.revertedWithCustomError(
+				gifty,
+				"Gifty__theLengthsDoNotMatch"
+			)
 			.withArgs(tokensExample.length, priceFeedsForTokens.length);
 	});
 });

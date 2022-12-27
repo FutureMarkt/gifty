@@ -3,7 +3,11 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { GiftyFixture } from "../fixtures/GiftyFixture";
 import { BigNumber } from "ethers";
 import { ethers } from "hardhat";
-import { OneEther, getConvertedPrice } from "../TestHelper";
+import {
+	OneEther,
+	getConvertedPrice,
+	getCommissionAmount,
+} from "../TestHelper";
 
 describe("Gifty | minimumGiftPrice", function () {
 	it("If the gift price is too small - revert", async function () {
@@ -16,7 +20,7 @@ describe("Gifty | minimumGiftPrice", function () {
 			gifty.giftETH(receiver.address, smallGift, {
 				value: smallGiftWithCommission,
 			})
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_9");
+		).to.be.revertedWithCustomError(gifty, "Gifty__tooLowGiftPrice");
 	});
 
 	it("If gift price is ok - there should be no revert", async function () {
@@ -44,12 +48,21 @@ describe("Gifty | minimumGiftPrice", function () {
 		// price.mul(ETH).div(price) => 10000000000000000 (0.01 ETH)
 
 		const smallGift = minGiftPrice.mul(OneEther).div(price);
-		const smallGiftWithCommission = smallGift.add(smallGift.div(100));
+
+		const [rate]: BigNumber[] = await gifty.getCommissionRate(
+			minGiftPrice
+		);
+
+		const commission: BigNumber = getCommissionAmount(smallGift, rate);
+		const smallGiftWithCommission = smallGift.add(commission);
 
 		await expect(
 			gifty.giftETH(receiver.address, smallGift, {
 				value: smallGiftWithCommission,
 			})
-		).not.to.be.revertedWithCustomError(gifty, "Gifty__error_9");
+		).not.to.be.revertedWithCustomError(
+			gifty,
+			"Gifty__commissionNotPayed"
+		);
 	});
 });

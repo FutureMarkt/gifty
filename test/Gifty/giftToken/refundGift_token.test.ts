@@ -24,7 +24,7 @@ describe("Gifty | refundGift | Token", function () {
 
 		await expect(
 			gifty.connect(signers[2]).refundGift(0)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_12");
+		).to.be.revertedWithCustomError(gifty, "Gifty__accessDenied");
 	});
 
 	it("When a receiver of a gift tries to refund gift - tx should be reverted", async function () {
@@ -34,7 +34,7 @@ describe("Gifty | refundGift | Token", function () {
 
 		await expect(
 			gifty.connect(receiver).refundGift(0)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_12");
+		).to.be.revertedWithCustomError(gifty, "Gifty__accessDenied");
 	});
 
 	it("When the gift was already claimed - tx should be reverted", async function () {
@@ -45,7 +45,7 @@ describe("Gifty | refundGift | Token", function () {
 
 		await expect(gifty.refundGift(0)).to.be.revertedWithCustomError(
 			gifty,
-			"Gifty__error_13"
+			"Gifty__alreadyClaimed"
 		);
 	});
 
@@ -57,7 +57,7 @@ describe("Gifty | refundGift | Token", function () {
 
 		await expect(gifty.refundGift(0)).to.be.revertedWithCustomError(
 			gifty,
-			"Gifty__error_14"
+			"Gifty__alreadyRefunded"
 		);
 	});
 
@@ -155,7 +155,7 @@ describe("Gifty | refundGift | Token", function () {
 
 		await expect(gifty.refundGift(0)).to.be.revertedWithCustomError(
 			gifty,
-			"Gifty__error_15"
+			"Gifty__temporarilyUnavailable"
 		);
 	});
 

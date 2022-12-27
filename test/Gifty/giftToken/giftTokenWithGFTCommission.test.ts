@@ -8,12 +8,6 @@ import {
 	getPriceOfExactETHAmount,
 	NonZeroAddress,
 } from "../../TestHelper";
-import {
-	UniswapV3OracleMock,
-	UniswapV3OracleMock__factory,
-} from "../../../typechain-types";
-
-import { time } from "@nomicfoundation/hardhat-network-helpers";
 
 const amount: BigNumber = ethers.utils.parseEther("50");
 
@@ -30,10 +24,10 @@ describe("Gfity | giftTokenWithGFTCommission", function () {
 					testToken.address,
 					amount
 				)
-			).to.be.revertedWithCustomError(gifty, "Gifty__error_11");
+			).to.be.revertedWithCustomError(gifty, "Gifty__giverEqReceiver");
 		});
 
-		it("If token does't allowed - revert", async function () {
+		it("If token doesn't allowed - revert", async function () {
 			const { gifty, receiver } = await loadFixture(GiftyFixture);
 
 			await expect(
@@ -42,7 +36,7 @@ describe("Gfity | giftTokenWithGFTCommission", function () {
 					NonZeroAddress,
 					amount
 				)
-			).to.be.revertedWithCustomError(gifty, "Gifty__error_16");
+			).to.be.revertedWithCustomError(gifty, "Gifty__notSupported");
 		});
 
 		it("Commission correctly charged", async function () {

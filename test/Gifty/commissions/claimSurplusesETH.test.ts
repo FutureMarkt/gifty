@@ -27,7 +27,7 @@ describe("Gifty | claimSurplusesETH", function () {
 
 		await expect(gifty.claimSurplusesETH()).to.be.revertedWithCustomError(
 			gifty,
-			"Gifty__error_7"
+			"Gifty__zeroOverpaidAmount"
 		);
 	});
 

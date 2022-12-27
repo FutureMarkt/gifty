@@ -281,7 +281,7 @@ describe("Gifty | Getters", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		expect(gifty.getPriceFeedForToken(NonZeroAddress))
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_4")
+			.to.be.revertedWithCustomError(gifty, "Gifty__commissionNotPayed")
 			.withArgs(NonZeroAddress);
 	});
 });

@@ -49,7 +49,7 @@ describe("Gifty | claimGiftWithPermit", function () {
 
 		await expect(
 			gifty.connect(signers[0]).claimGiftWithPermit(0, v, r, s)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_25");
+		).to.be.revertedWithCustomError(gifty, "Gifty__hasReceiver");
 	});
 
 	it("Signed receiver is not equal to caller", async function () {
@@ -70,7 +70,10 @@ describe("Gifty | claimGiftWithPermit", function () {
 
 		await expect(
 			gifty.connect(signers[0]).claimGiftWithPermit(0, v, r, s)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_26");
+		).to.be.revertedWithCustomError(
+			gifty,
+			"Gifty__recoveredAddressDoesNotMatch"
+		);
 	});
 
 	it("Signed and given giftId are deferrent", async function () {
@@ -98,7 +101,10 @@ describe("Gifty | claimGiftWithPermit", function () {
 
 		await expect(
 			gifty.connect(receiver).claimGiftWithPermit(0, v, r, s)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_26");
+		).to.be.revertedWithCustomError(
+			gifty,
+			"Gifty__recoveredAddressDoesNotMatch"
+		);
 	});
 
 	it("Gift receiver are changed", async function () {
@@ -168,7 +174,7 @@ describe("Gifty | claimGiftWithPermit", function () {
 
 		await expect(
 			gifty.connect(receiver).claimGift(0)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_13");
+		).to.be.revertedWithCustomError(gifty, "Gifty__alreadyClaimed");
 	});
 
 	it("Gift already refunded - revert", async function () {
@@ -192,7 +198,7 @@ describe("Gifty | claimGiftWithPermit", function () {
 
 		await expect(
 			gifty.connect(receiver).claimGiftWithPermit(0, v, r, s)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_14");
+		).to.be.revertedWithCustomError(gifty, "Gifty__alreadyRefunded");
 	});
 
 	it("Signature from another signer - revert", async function () {
@@ -214,7 +220,10 @@ describe("Gifty | claimGiftWithPermit", function () {
 
 		await expect(
 			gifty.connect(receiver).claimGiftWithPermit(0, v, r, s)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_26");
+		).to.be.revertedWithCustomError(
+			gifty,
+			"Gifty__recoveredAddressDoesNotMatch"
+		);
 	});
 
 	it("Gift does not exist - revert", async function () {

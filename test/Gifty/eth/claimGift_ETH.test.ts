@@ -16,7 +16,7 @@ describe("Gifty | Claim ETH", function () {
 
 		await expect(gifty.claimGift(0)).to.be.revertedWithCustomError(
 			gifty,
-			"Gifty__error_12"
+			"Gifty__accessDenied"
 		);
 	});
 
@@ -31,7 +31,7 @@ describe("Gifty | Claim ETH", function () {
 
 		await expect(
 			gifty.connect(receiver).claimGift(0)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_13");
+		).to.be.revertedWithCustomError(gifty, "Gifty__alreadyClaimed");
 	});
 
 	it("When the gift was refunded tx should be reverted", async function () {
@@ -45,7 +45,7 @@ describe("Gifty | Claim ETH", function () {
 
 		await expect(
 			gifty.connect(receiver).claimGift(0)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_14");
+		).to.be.revertedWithCustomError(gifty, "Gifty__alreadyRefunded");
 	});
 
 	it("The gift is successfully claimed and balance was changed", async function () {

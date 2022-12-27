@@ -131,7 +131,7 @@ contract GiftyController is
 	 * @param b - length of second array
 	 */
 	modifier compareLengths(uint256 a, uint256 b) {
-		if (a != b) revert Gifty__error_10(a, b);
+		if (a != b) revert Gifty__theLengthsDoNotMatch(a, b);
 		_;
 	}
 
@@ -140,7 +140,7 @@ contract GiftyController is
 	 * @param arg - address to be validated
 	 */
 	modifier notZeroAddress(address arg) {
-		if (arg == address(0)) revert Gifty__error_8();
+		if (arg == address(0)) revert Gifty__zeroParam();
 		_;
 	}
 
@@ -206,7 +206,7 @@ contract GiftyController is
 			refundSettings.refundGiftWithCommissionThreshold == 0 ||
 			refundSettings.freeRefundGiftThreshold == 0 ||
 			refundSettings.giftRefundCommission == 0
-		) revert Gifty__error_8();
+		) revert Gifty__zeroParam();
 
 		s_giftRefundSettings = refundSettings;
 
@@ -437,7 +437,7 @@ contract GiftyController is
 				anotherTokenInPool: anotherTokenInPool,
 				secondsAgo: secondsAgo
 			});
-		} else revert Gifty__error_23();
+		} else revert Gifty__notWithGFT();
 
 		emit UniswapConfigChanged(pool, anotherTokenInPool, secondsAgo);
 	}
@@ -445,16 +445,16 @@ contract GiftyController is
 	/* --------------------Internal functions-------------------- */
 	function _getPriceFeed(address asset) internal view returns (AggregatorV3Interface priceFeed) {
 		priceFeed = s_priceFeeds[asset];
-		if (address(priceFeed) == address(0)) revert Gifty__error_4(asset);
+		if (address(priceFeed) == address(0)) revert Gifty__priceFeedNotFound(asset);
 	}
 
 	/* --------------------Private functions-------------------- */
 	function _addToken(address token) private {
 		// Token already exist at Gifty platform
-		if (s_tokenInfo[token].isTokenAllowed) revert Gifty__error_24();
+		if (s_tokenInfo[token].isTokenAllowed) revert Gifty__alreadyAdded();
 
 		// Checking whether the address which are trying to add is a contract?
-		if (!token.isContract()) revert Gifty__error_0(token);
+		if (!token.isContract()) revert Gifty__notAnContract(token);
 
 		// The current length is the future index for the added token
 		uint256 newIndex = s_allowedTokens.length;
@@ -474,7 +474,7 @@ contract GiftyController is
 		TokenInfo memory tokenBeingDeletedInfo = s_tokenInfo[beingDeletedToken];
 
 		// Is there a token in the system at the moment? If not revert
-		if (!tokenBeingDeletedInfo.isTokenAllowed) revert Gifty__error_1(beingDeletedToken);
+		if (!tokenBeingDeletedInfo.isTokenAllowed) revert Gifty__NotInList(beingDeletedToken);
 
 		/*
 		  We take the last element in the available tokens
@@ -509,10 +509,11 @@ contract GiftyController is
 	}
 
 	function _transferAssetCommissionToPiggyBox(address asset, uint256 amount) private {
-		if (amount == 0) revert Gifty__error_8();
+		if (amount == 0) revert Gifty__zeroParam();
 
 		uint256 giftyCommissionBalance = s_giftyCommission[asset];
-		if (amount > giftyCommissionBalance) revert Gifty__error_6(amount, giftyCommissionBalance);
+		if (amount > giftyCommissionBalance)
+			revert Gifty__earnedAmountLtValue(amount, giftyCommissionBalance);
 
 		if (asset == _getETHAddress()) {
 			s_piggyBox.sendValue(amount);
