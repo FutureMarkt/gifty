@@ -16,6 +16,8 @@ interface IGiftyAction {
 
 	function claimGift(uint256 giftId) external;
 
+	function claimGiftWithPermit(uint256 giftId, uint8 v, bytes32 r, bytes32 s) external;
+
 	function refundGift(uint256 giftId) external;
 
 	function claimSurplusesETH() external;
