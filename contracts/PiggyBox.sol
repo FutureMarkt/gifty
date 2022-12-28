@@ -24,29 +24,35 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 
 	/* --------------------Data types-------------------- */
 
+	// Settings for splitting earned commission
 	struct SplitSettings {
 		uint16 mintPercentage; // 2 bytes ----|
 		uint16 burnPercentage; // 2 bytes ----|
 		uint8 decimals; // 1 byte ------------|
 	}
 
+	// Token swap settings for UniswapV3
 	struct SwapSettings {
 		address router;
 		address weth9;
-		address middleToken;
-		uint24 swapFeeToMiddleToken;
-		uint24 swapFeeToGFT;
+		address middleToken; // 20 bytes --------|
+		uint24 swapFeeToMiddleToken; // 3 bytes -|
+		uint24 swapFeeToGFT; // 3 bytes ---------|
 	}
 
 	/* --------------------State variables-------------------- */
 
+	// Gifty main contract
+	address private s_gifty;
+	// GFT token
 	address private s_giftyToken;
-	address private s_gifty; // 20 bytes ---------------|
-	SplitSettings private s_splitSettings; // 5 bytes --|
-	SwapSettings private s_swapSettings;
+
+	SwapSettings private s_swapSettings; // ------|
+	SplitSettings private s_splitSettings; // ----|
 
 	/* --------------------Modifiers-------------------- */
 
+	// Checking the address that it is not address(0)
 	modifier notZeroAddress(address target) {
 		if (target == address(0)) revert PiggyBox__oneOfTheAddressIsZero();
 		_;
@@ -54,6 +60,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 
 	/* --------------------Functions available to all-------------------- */
 
+	/// @dev Contract initialization, can be executed only once.
 	function initialize() external initializer {
 		__UUPSUpgradeable_init();
 		__Ownable_init();
@@ -64,6 +71,16 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 	}
 
 	/* --------------------Functions available only to owner-------------------- */
+
+	/**
+	 * @notice Set the main settings of the contract.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param gifty - gifty contract address.
+	 * @param giftyToken - GFT address
+	 * @param splitSettings - Settings for splitting earned commission
+	 * @param swapSettings - Token swap settings for UniswapV3
+	 */
 
 	function setSettings(
 		address gifty,
@@ -77,11 +94,23 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		changeSwapSettings(swapSettings);
 	}
 
+	/**
+	 * @notice Set {s_gifty} Gifty contract address.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param gifty - Gifty address (!address(0))
+	 */
 	function changeGifty(address gifty) public onlyOwner notZeroAddress(gifty) {
 		s_gifty = gifty;
 		emit GiftyChanged(gifty);
 	}
 
+	/**
+	 * @notice Set {s_giftyToken} GFT contract address.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param newGiftyToken - GFT address (!address(0))
+	 */
 	function changeGiftyToken(
 		address newGiftyToken
 	) public onlyOwner notZeroAddress(newGiftyToken) {
@@ -89,6 +118,14 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		emit GiftyTokenChanged(newGiftyToken);
 	}
 
+	/**
+	 * @notice Set {s_splitSettings} splitSettings.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param splitSettings - new splitSettings
+	 * @param splitSettings - decimals must be not zero
+	 * @param splitSettings - the maximum value of totalPercantage(mint+burn) must be no more than 100% with decimals
+	 */
 	function changeSplitSettings(SplitSettings memory splitSettings) public onlyOwner {
 		if (splitSettings.decimals == 0) revert PiggyBox__decimalsIsZero();
 
@@ -97,6 +134,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 			revert PiggyBox__incorrectPercentage(operationPercentage);
 
 		s_splitSettings = splitSettings;
+
 		emit SplitSettingsChanged(
 			splitSettings.mintPercentage,
 			splitSettings.burnPercentage,
@@ -104,9 +142,22 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		);
 	}
 
+	/**
+	 * @notice Set {s_swapSettings} swap settings.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param swapSettings - router, weth9, middleToken - must be a non-zero address
+	 * @param swapSettings - swapFeeToMiddleToken and swapFeeToGFT must be valid UnsiwapV3 percantage
+	 */
 	function changeSwapSettings(
 		SwapSettings memory swapSettings
-	) public onlyOwner notZeroAddress(swapSettings.router) notZeroAddress(swapSettings.weth9) {
+	)
+		public
+		onlyOwner
+		notZeroAddress(swapSettings.router)
+		notZeroAddress(swapSettings.weth9)
+		notZeroAddress(swapSettings.middleToken)
+	{
 		if (
 			!isValidUniswapFee(swapSettings.swapFeeToMiddleToken) ||
 			!isValidUniswapFee(swapSettings.swapFeeToGFT)
@@ -123,17 +174,23 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		);
 	}
 
+	/**
+	 * @notice Swap the tokens to GFT and split the received amount in accordance with splitSettings.
+	 * @notice The function is only available to the owner.
+	 *
+	 * @param tokensToBeSwapped - Array of tokens to be used during swap/split
+	 * @param leftoversTo - Receiver address of leftovers
+	 */
 	function splitEarnedCommission(
 		address[] memory tokensToBeSwapped,
 		address leftoversTo
 	) external onlyOwner {
+		// Cache vars
 		SwapSettings memory swapSettings = s_swapSettings;
 		address GFT = s_giftyToken;
 
-		uint256 amountOfSwaps = tokensToBeSwapped.length;
-
 		// Swap each token to GFT
-		for (uint256 i; i < amountOfSwaps; i++) {
+		for (uint256 i; i < tokensToBeSwapped.length; i++) {
 			swapToGFT(tokensToBeSwapped[i], GFT, swapSettings);
 		}
 
@@ -148,6 +205,10 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 
 	/* --------------------Private / Internal functions-------------------- */
 
+	// Exchanges the passed token to GFT via the liquidity pool of UniswapV3
+	// tokenIn - token to be swapped
+	// GFT - GFT address
+	// swapSettings - swap settings
 	function swapToGFT(address tokenIn, address GFT, SwapSettings memory swapSettings) private {
 		// If the token is equal to ETH mask, first convert it to WETH
 		if (tokenIn == _getETHAddress()) {
@@ -155,6 +216,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 			IWETH9(tokenIn).deposit{value: address(this).balance}();
 		}
 
+		// Validate balance
 		uint256 amountToSwap = _getTokenBalance(tokenIn);
 		if (amountToSwap == 0) revert PiggyBox__tokenBalanceIsZero(tokenIn);
 
@@ -170,7 +232,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 				swapSettings.swapFeeToGFT
 			);
 		} else {
-			// Otherwise, we do the exchange through other pools
+			// Otherwise, we do the exchange through multi pools
 			received = swapExactInputMulti(
 				swapSettings.router,
 				tokenIn,
@@ -186,23 +248,33 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		if (received == 0) revert PiggyBox__receivedAmountFromSwapEq0();
 	}
 
+	// Split GFT tokens according to the splitSettings
+	// leftoversTo - Receiver address of leftovers
+	// GFT - GFT address
+	// returns:
+	// {mintAmount} - amount of GFT minted,
+	// {burnAmount} - amount of burned GFT,
+	// {sendAmount} - amount of GFT transfered to {leftoversTo}
 	function _splitCommission(
 		address leftoversTo,
 		address GFT
 	) private returns (uint256 mintAmount, uint256 burnAmount, uint256 sendAmount) {
 		SplitSettings memory splitSettings = s_splitSettings;
 
+		// Minimum value for accurate calculations
 		uint256 minimumValue = 10000;
 		uint256 balance = _getTokenBalance(GFT);
 
 		// Validation minimum value for correct division into fractions.
 		if (balance < minimumValue) revert PiggyBox__toLowAmount(balance, minimumValue);
 
-		// Obtaining the total amount of interest for the token emission manipulation, there can only be one operation.
+		// Obtaining the total amount of percantage for the token emission manipulation, there can only be one operation.
 		uint256 totalPercantageToOperation = splitSettings.burnPercentage +
 			splitSettings.mintPercentage;
 
+		// If totalPercantageToOperation == 0 -> skip
 		if (totalPercantageToOperation != 0) {
+			// Since there can be only one of the two operations - if mintPercentage == 0 => burn
 			if (splitSettings.mintPercentage == 0) {
 				burnAmount = _calculatePercentage(
 					balance,
@@ -258,7 +330,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		amountOut = ISwapRouter(router).exactInputSingle(params);
 	}
 
-	// Normal token exchange through multiple liquidity pools via UniswapV3
+	// Sipmple token exchange through multiple liquidity pools via UniswapV3
 	function swapExactInputMulti(
 		address router,
 		address tokenIn,
@@ -281,7 +353,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		amountOut = ISwapRouter(router).exactInput(params);
 	}
 
-	// Replacing balanceOf
+	// Replacing balanceOf function
 	function _getTokenBalance(address token) private view returns (uint256) {
 		(bool success, bytes memory data) = token.staticcall(
 			abi.encodeWithSelector(IERC20Upgradeable.balanceOf.selector, address(this))
@@ -291,6 +363,7 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		return abi.decode(data, (uint256));
 	}
 
+	// Simple percantage calculation with decimals
 	function _calculatePercentage(
 		uint256 amount,
 		uint256 percentage,
@@ -299,12 +372,14 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		return (amount * percentage) / (100 * (10 ** decimals));
 	}
 
+	// Get ETH mask
 	function _getETHAddress() private pure returns (address) {
 		// About this address:
 		// https://ethereum.stackexchange.com/questions/87352/why-does-this-address-have-a-balance
 		return 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 	}
 
+	// Validate UniswapV3 fees
 	function isValidUniswapFee(uint256 fee) private pure returns (bool isValid) {
 		if (fee == 500 || fee == 3000 || fee == 10000) isValid = true;
 	}
@@ -313,18 +388,22 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 
 	/* --------------------Getter functions-------------------- */
 
+	/// @return Gifty address
 	function getGifty() external view returns (address) {
 		return s_gifty;
 	}
 
+	/// @return GFT address
 	function getGiftyToken() external view returns (address) {
 		return s_giftyToken;
 	}
 
+	/// @return Split settings
 	function getSplitSettings() external view returns (SplitSettings memory) {
 		return s_splitSettings;
 	}
 
+	/// @return Swap settings
 	function getSwapSettings() external view returns (SwapSettings memory) {
 		return s_swapSettings;
 	}
