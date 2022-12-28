@@ -6,6 +6,7 @@ import {
 	EthAddress,
 	SplitCommission,
 	spllitCommissionSettings,
+	ZeroAddress,
 } from "../TestHelper";
 
 import { expect } from "chai";
@@ -70,17 +71,22 @@ describe("GiftyToken | mint/burn", function () {
 
 		await prepareFixture(gifty, receiver, piggyBox, 10_000 /* 100% */, 0);
 
-		const balanceBefore: BigNumber = await giftyToken.balanceOf(
-			piggyBox.address
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[EthAddress],
+			receiver.address
 		);
 
-		await piggyBox.splitEarnedCommission([EthAddress], receiver.address);
+		const splitReceipt = await splitTx.wait(1);
 
-		const balanceAfter: BigNumber = await giftyToken.balanceOf(
-			piggyBox.address
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[1] ==
+					ethers.utils.hexZeroPad(ZeroAddress, 32).toLowerCase()
 		);
 
-		expect(balanceAfter).gt(balanceBefore);
+		const mintedAmount = BigNumber.from(gftTransfer?.data);
+		expect(mintedAmount).gt(0);
 	});
 
 	it("Tokens were successfully burned", async function () {

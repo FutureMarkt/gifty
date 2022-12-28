@@ -129,6 +129,9 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 	function changeSplitSettings(SplitSettings memory splitSettings) public onlyOwner {
 		if (splitSettings.decimals == 0) revert PiggyBox__decimalsIsZero();
 
+		if (!(splitSettings.mintPercentage == 0 || splitSettings.burnPercentage == 0))
+			revert PiggyBox__oneOfTheParamsMustBeZero();
+
 		uint256 operationPercentage = splitSettings.mintPercentage + splitSettings.burnPercentage;
 		if (operationPercentage > (100 * (10 ** splitSettings.decimals)))
 			revert PiggyBox__incorrectPercentage(operationPercentage);
@@ -268,39 +271,27 @@ contract PiggyBox is IPiggyBoxEvents, IPiggyBoxErrors, OwnableUpgradeable, UUPSU
 		// Validation minimum value for correct division into fractions.
 		if (balance < minimumValue) revert PiggyBox__toLowAmount(balance, minimumValue);
 
-		// Obtaining the total amount of percantage for the token emission manipulation, there can only be one operation.
-		uint256 totalPercantageToOperation = splitSettings.burnPercentage +
-			splitSettings.mintPercentage;
+		if (splitSettings.mintPercentage > 0) {
+			mintAmount = _calculatePercentage(
+				balance,
+				splitSettings.mintPercentage,
+				splitSettings.decimals
+			);
 
-		// If totalPercantageToOperation == 0 -> skip
-		if (totalPercantageToOperation != 0) {
-			// Since there can be only one of the two operations - if mintPercentage == 0 => burn
-			if (splitSettings.mintPercentage == 0) {
-				burnAmount = _calculatePercentage(
-					balance,
-					splitSettings.burnPercentage,
-					splitSettings.decimals
-				);
+			IGiftyToken(GFT).mint(address(this), mintAmount);
 
-				IGiftyToken(GFT).burn(address(this), burnAmount);
-			} else {
-				mintAmount = _calculatePercentage(
-					balance,
-					splitSettings.mintPercentage,
-					splitSettings.decimals
-				);
+			sendAmount = balance + mintAmount;
+		} else if (splitSettings.burnPercentage > 0) {
+			burnAmount = _calculatePercentage(
+				balance,
+				splitSettings.burnPercentage,
+				splitSettings.decimals
+			);
 
-				IGiftyToken(GFT).mint(address(this), mintAmount);
-			}
-		}
+			IGiftyToken(GFT).burn(address(this), burnAmount);
 
-		uint256 maxPercantage = (100 * (10 ** splitSettings.decimals));
-
-		sendAmount = _calculatePercentage(
-			balance,
-			maxPercantage - totalPercantageToOperation,
-			splitSettings.decimals
-		);
+			sendAmount = balance - burnAmount;
+		} else sendAmount = balance;
 
 		// Sending leftovers to the target address
 		IERC20Upgradeable(GFT).safeTransfer(leftoversTo, sendAmount);

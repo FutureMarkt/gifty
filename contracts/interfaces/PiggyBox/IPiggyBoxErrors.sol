@@ -10,4 +10,5 @@ interface IPiggyBoxErrors {
 	error PiggyBox__staticcalFailed();
 	error PiggyBox__toLowAmount(uint256 balance, uint256 minimumValue);
 	error PiggyBox__tokenBalanceIsZero(address token);
+	error PiggyBox__oneOfTheParamsMustBeZero();
 }

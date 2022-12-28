@@ -43,6 +43,21 @@ describe("PiggyBox | changeSpllitSettings", function () {
 		).to.be.revertedWithCustomError(piggyBox, "PiggyBox__decimalsIsZero");
 	});
 
+	it("If both operation percantage gt 0 - revert", async function () {
+		const { piggyBox } = await loadFixture(GiftyFixture);
+
+		await expect(
+			piggyBox.changeSplitSettings({
+				mintPercentage: 3000,
+				burnPercentage: 3000,
+				decimals: 2,
+			})
+		).to.be.revertedWithCustomError(
+			piggyBox,
+			"PiggyBox__oneOfTheParamsMustBeZero"
+		);
+	});
+
 	it("All props changed correctly", async function () {
 		const { piggyBox } = await loadFixture(GiftyFixture);
 

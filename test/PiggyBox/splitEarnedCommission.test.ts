@@ -176,35 +176,67 @@ describe("PiggyBox | splitEarnedCommission", function () {
 			.withArgs(giftyToken.address);
 	});
 
-	it("if middle token -> singleTransfer", async function () {
-		const { piggyBox, owner, tokensToBeSwapped, giftyToken } =
+	it("if middle token -> singleTransfer, work correctly", async function () {
+		const { piggyBox, receiver, tokensToBeSwapped, giftyToken } =
 			await loadFixture(splitEarnedCommissionFixture);
+
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 0,
+		});
 
 		const splitTx = await piggyBox.splitEarnedCommission(
 			[tokensToBeSwapped[0]],
-			owner.address
+			receiver.address
 		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		const tranferedAmount: BigNumber = BigNumber.from(gftTransfer?.data);
 
 		await expect(splitTx).to.changeTokenBalance(
 			giftyToken,
-			piggyBox.address,
-			"2976015022589517399"
+			receiver.address,
+			tranferedAmount
 		);
 	});
 
 	it("if not middle token -> multiTransfer", async function () {
-		const { piggyBox, owner, tokensToBeSwapped, giftyToken } =
+		const { piggyBox, receiver, tokensToBeSwapped, giftyToken } =
 			await loadFixture(splitEarnedCommissionFixture);
+
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 0,
+		});
 
 		const splitTx = await piggyBox.splitEarnedCommission(
 			[tokensToBeSwapped[1]],
-			owner.address
+			receiver.address
 		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		const tranferedAmount: BigNumber = BigNumber.from(gftTransfer?.data);
 
 		await expect(splitTx).to.changeTokenBalance(
 			giftyToken,
-			piggyBox.address,
-			"2952631946425699812"
+			receiver.address,
+			tranferedAmount
 		);
 	});
 
@@ -296,7 +328,7 @@ describe("PiggyBox | splitEarnedCommission", function () {
 		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
 			await loadFixture(splitEarnedCommissionFixture);
 
-		// Set all settings to 0
+		// Set burn to 50%
 		await piggyBox.changeSplitSettings({
 			...spllitCommissionSettings,
 			burnPercentage: 5000,
@@ -334,7 +366,7 @@ describe("PiggyBox | splitEarnedCommission", function () {
 		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
 			await loadFixture(splitEarnedCommissionFixture);
 
-		// Set all settings to 0
+		// Set burn to 50%
 		await piggyBox.changeSplitSettings({
 			...spllitCommissionSettings,
 			burnPercentage: 5000,
@@ -361,5 +393,225 @@ describe("PiggyBox | splitEarnedCommission", function () {
 			receiver.address
 		);
 		expect(receiverBalance).eq(amount.div(2));
+	});
+
+	it("Burn percantage is 100%", async function () {
+		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
+			await loadFixture(splitEarnedCommissionFixture);
+
+		// Set burn to 50%
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			burnPercentage: 10000,
+			mintPercentage: 0,
+		});
+
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[tokensToBeSwapped[1]],
+			receiver.address
+		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		const gftBurned = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(ZeroAddress, 32).toLowerCase()
+		);
+
+		let amount: BigNumber = BigNumber.from(gftTransfer?.data);
+		let burnedAmount: BigNumber = BigNumber.from(gftBurned?.data);
+
+		expect(amount).eq(burnedAmount);
+		expect(splitTx).to.changeTokenBalance(giftyToken, receiver.address, 0);
+	});
+
+	it("When mint percantage is not 0 -> calculated amount must be minted", async function () {
+		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
+			await loadFixture(splitEarnedCommissionFixture);
+
+		// Set mint settings to 100%
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 10000,
+		});
+
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[tokensToBeSwapped[1]],
+			receiver.address
+		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		const gftMint = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[1] ==
+					ethers.utils.hexZeroPad(ZeroAddress, 32).toLowerCase()
+		);
+
+		let amount: BigNumber = BigNumber.from(gftTransfer?.data);
+		let amountMinted: BigNumber = BigNumber.from(gftMint?.data);
+
+		expect(amountMinted).eq(amount);
+	});
+
+	it("When mint percantage is not 0 -> sum minted and exchanged must be transfered to target address", async function () {
+		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
+			await loadFixture(splitEarnedCommissionFixture);
+
+		// Set mint settings to 100%
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 10000,
+		});
+
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[tokensToBeSwapped[1]],
+			receiver.address
+		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		let amount: BigNumber = BigNumber.from(gftTransfer?.data);
+
+		expect(splitTx).to.changeTokenBalance(
+			giftyToken,
+			receiver.address,
+			amount.mul(2)
+		);
+	});
+
+	it("CommissionSplitted must be emmited with correct args (MINT)", async function () {
+		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
+			await loadFixture(splitEarnedCommissionFixture);
+
+		// Set mint settings to 100%
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 10000,
+		});
+
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[tokensToBeSwapped[1]],
+			receiver.address
+		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		const gftMint = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[1] ==
+					ethers.utils.hexZeroPad(ZeroAddress, 32).toLowerCase()
+		);
+
+		let amount: BigNumber = BigNumber.from(gftTransfer?.data);
+		let amountMinted: BigNumber = BigNumber.from(gftMint?.data);
+
+		expect(splitTx)
+			.to.emit(piggyBox, "CommissionSplitted")
+			.withArgs(receiver.address, amount, amountMinted, 0);
+	});
+
+	it("CommissionSplitted must be emmited with correct args (BURN)", async function () {
+		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
+			await loadFixture(splitEarnedCommissionFixture);
+
+		// Set mint settings to 100%
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 0,
+			burnPercentage: 5000,
+		});
+
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[tokensToBeSwapped[1]],
+			receiver.address
+		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		const gftBurn = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(ZeroAddress, 32).toLowerCase()
+		);
+
+		let amount: BigNumber = BigNumber.from(gftTransfer?.data);
+		let amountBurned: BigNumber = BigNumber.from(gftBurn?.data);
+
+		expect(splitTx)
+			.to.emit(piggyBox, "CommissionSplitted")
+			.withArgs(receiver.address, amount, 0, amountBurned);
+	});
+
+	it.only("CommissionSplitted must be emmited with correct args (NOTHINK)", async function () {
+		const { receiver, piggyBox, tokensToBeSwapped, giftyToken } =
+			await loadFixture(splitEarnedCommissionFixture);
+
+		// Set mint settings to 100%
+		await piggyBox.changeSplitSettings({
+			...spllitCommissionSettings,
+			mintPercentage: 0,
+			burnPercentage: 0,
+		});
+
+		const splitTx = await piggyBox.splitEarnedCommission(
+			[tokensToBeSwapped[1]],
+			receiver.address
+		);
+
+		const splitReceipt = await splitTx.wait(1);
+
+		const gftTransfer = splitReceipt.events?.find(
+			(event) =>
+				event.address == giftyToken.address &&
+				event.topics[2] ==
+					ethers.utils.hexZeroPad(piggyBox.address, 32).toLowerCase()
+		);
+
+		let amount: BigNumber = BigNumber.from(gftTransfer?.data);
+
+		expect(splitTx)
+			.to.emit(piggyBox, "CommissionSplitted")
+			.withArgs(receiver.address, amount, 0, 0);
 	});
 });
