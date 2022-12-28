@@ -48,7 +48,7 @@ describe("GiftyController | deleteTokens", function () {
 
 		await expect(
 			gifty.deleteTokens([sampleToken])
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_1");
+		).to.be.revertedWithCustomError(gifty, "Gifty__NotInList");
 	});
 
 	it("Delete token should delete isAllowed flag", async function () {

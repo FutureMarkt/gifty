@@ -18,7 +18,7 @@ describe("Gifty | giftToken", function () {
 
 		await expect(
 			gifty.giftToken(owner.address, testToken.address, giftAmount)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_11");
+		).to.be.revertedWithCustomError(gifty, "Gifty__giverEqReceiver");
 	});
 
 	it("If token doesn't allowed should be reverted", async function () {
@@ -29,8 +29,21 @@ describe("Gifty | giftToken", function () {
 		await expect(
 			gifty.giftToken(receiver.address, sampleToken, giftAmount)
 		)
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_16")
+			.to.be.revertedWithCustomError(gifty, "Gifty__notSupported")
 			.withArgs(sampleToken);
+	});
+
+	it("If tokenToBeGifted equal GFT token - should be reverted", async function () {
+		const { gifty, receiver, giftyToken } = await loadFixture(
+			GiftyFixture
+		);
+
+		await expect(
+			gifty.giftToken(receiver.address, giftyToken.address, 10000)
+		).to.be.revertedWithCustomError(
+			gifty,
+			"Gifty__GFTTokenFromSimpleGift"
+		);
 	});
 
 	it("If gift price to low should be reverted", async function () {
@@ -38,7 +51,7 @@ describe("Gifty | giftToken", function () {
 
 		await expect(
 			gifty.giftToken(receiver.address, testToken.address, 10000)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_9");
+		).to.be.revertedWithCustomError(gifty, "Gifty__tooLowGiftPrice");
 	});
 
 	it("Correct price received from the price feed", async function () {

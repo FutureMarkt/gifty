@@ -17,7 +17,7 @@ describe("Gifty | giftETHWithGFTCommission", function () {
 
 		await expect(
 			gifty.giftETHWithGFTCommission(owner.address)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_11");
+		).to.be.revertedWithCustomError(gifty, "Gifty__giverEqReceiver");
 	});
 
 	it("Address of gifted asset specified as ETH", async function () {
@@ -211,7 +211,7 @@ describe("Gifty | giftETHWithGFTCommission", function () {
 
 		await expect(
 			gifty.giftETHWithGFTCommission(receiver.address)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_9");
+		).to.be.revertedWithCustomError(gifty, "Gifty__tooLowGiftPrice");
 	});
 
 	it("The user finInfo updated correctly (totalTurnoverInUSD)", async function () {

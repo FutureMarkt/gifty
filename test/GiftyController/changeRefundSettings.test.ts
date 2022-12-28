@@ -36,7 +36,7 @@ describe("GiftyController | changeRefundSettings", function () {
 
 		await expect(
 			gifty.changeRefundSettings(params)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("One of the params eq to 0 (2)", async function () {
@@ -46,7 +46,7 @@ describe("GiftyController | changeRefundSettings", function () {
 
 		await expect(
 			gifty.changeRefundSettings(params)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("One of the params eq to 0 (3)", async function () {
@@ -56,7 +56,7 @@ describe("GiftyController | changeRefundSettings", function () {
 
 		await expect(
 			gifty.changeRefundSettings(params)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("RefundGiftWithCommissionThreshold setted", async function () {

@@ -69,7 +69,7 @@ describe("Gifty | commissions", function () {
 				gifty.giftETH(receiver.address, giftAmount, {
 					value: 1,
 				})
-			).revertedWithCustomError(gifty, "Gifty__error_5");
+			).revertedWithCustomError(gifty, "Gifty__amountLtValue");
 		});
 
 		it("If the transferred commission is too small - revert", async function () {
@@ -79,7 +79,7 @@ describe("Gifty | commissions", function () {
 				gifty.giftETH(receiver.address, giftAmount, {
 					value: testHelper.OneEther.add(1),
 				})
-			).revertedWithCustomError(gifty, "Gifty__error_3");
+			).revertedWithCustomError(gifty, "Gifty__commissionNotPayed");
 		});
 
 		it("If the transferred commission is gt Gifty commission, write delta - for the possibility of withdrawal", async function () {
@@ -224,6 +224,6 @@ describe("Gifty | commissions", function () {
 
 		await expect(
 			gifty.giftETH(receiver.address, 9999, { value: 10100 })
-		).revertedWithCustomError(gifty, "Gifty__error_2");
+		).revertedWithCustomError(gifty, "Gifty__ltMinValue");
 	});
 });

@@ -3,9 +3,8 @@ pragma solidity 0.8.17;
 
 /* Interfaces */
 import {IGiftyEvents, IGiftyErrors} from "./interfaces/Gifty/IGifty.sol";
-import {IGiftyToken} from "./interfaces/IGiftyToken.sol";
 
-/* External contracts interfaces */
+/* External contract interfaces */
 import {AggregatorV3Interface} from "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
 import {IUniswapV3PoolImmutables} from "@uniswap/v3-core/contracts/interfaces/pool/IUniswapV3PoolImmutables.sol";
 
@@ -82,6 +81,7 @@ contract GiftyController is
 		ReducedComissionRate reduced; // 16 bytes ---|
 	}
 
+	// Commission settings collected together.
 	struct CommissionSettings {
 		CommissionThresholds thresholds; // 1 slot
 		Commissions commissions; // 1 slot
@@ -97,12 +97,7 @@ contract GiftyController is
 	address internal s_giftyToken;
 
 	// The contract to which the EARNED* commission from all gifts is transferred.
-	// EARNED - commission after all burning deductions and other manipulations.
 	address payable private s_piggyBox;
-
-	// To get the price in usd, we use the Chainlink Data Feeds,
-	// each token has its own contract for displaying the price of tokens in relation to the USD.
-	mapping(address => AggregatorV3Interface) internal s_priceFeeds;
 
 	// gift refund settings.
 	GiftRefundSettings internal s_giftRefundSettings;
@@ -116,6 +111,10 @@ contract GiftyController is
 	// We save the amount of each asset the contract received as a commission.
 	mapping(address => uint256)
 		internal s_giftyCommission; /* asset address */ /* earned commission */
+
+	// To get the price in usd, we use the Chainlink Data Feeds,
+	// each token has its own contract for displaying the price of tokens in relation to the USD.
+	mapping(address => AggregatorV3Interface) internal s_priceFeeds;
 
 	// Gap for future upgrades.
 	// To learn more: [https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#storage-gaps]
@@ -132,7 +131,7 @@ contract GiftyController is
 	 * @param b - length of second array
 	 */
 	modifier compareLengths(uint256 a, uint256 b) {
-		if (a != b) revert Gifty__error_10(a, b);
+		if (a != b) revert Gifty__theLengthsDoNotMatch(a, b);
 		_;
 	}
 
@@ -141,7 +140,7 @@ contract GiftyController is
 	 * @param arg - address to be validated
 	 */
 	modifier notZeroAddress(address arg) {
-		if (arg == address(0)) revert Gifty__error_8();
+		if (arg == address(0)) revert Gifty__zeroParam();
 		_;
 	}
 
@@ -169,6 +168,15 @@ contract GiftyController is
 		changeCommissionSettings(thresholds, commissions);
 	}
 
+	/**
+	 * @notice Changes GiftyToken, since the liquidity pool from UniswapV3 is also associated with this, we must change it as well.
+	 * @notice The function is only available to the owner.
+	 * @notice
+	 *
+	 * @param newGiftyToken - new GFT address | must be non-zero address
+	 * @param pool - address of the UniswapV3Pool | must be non-zero address
+	 * @param secondsAgo - secondsAgo for TWAP oracle
+	 */
 	function changeGiftyToken(
 		address newGiftyToken,
 		address pool,
@@ -207,7 +215,7 @@ contract GiftyController is
 			refundSettings.refundGiftWithCommissionThreshold == 0 ||
 			refundSettings.freeRefundGiftThreshold == 0 ||
 			refundSettings.giftRefundCommission == 0
-		) revert Gifty__error_8();
+		) revert Gifty__zeroParam();
 
 		s_giftRefundSettings = refundSettings;
 
@@ -362,10 +370,11 @@ contract GiftyController is
 	 * @param amount - number of tokens to be transfered
 	 */
 	function transferToPiggyBoxTokens(
-		address token,
-		uint256 amount
-	) external onlyOwner nonReentrant {
-		_transferAssetCommissionToPiggyBox(token, amount);
+		address[] memory token,
+		uint256[] memory amount
+	) external onlyOwner compareLengths(token.length, amount.length) nonReentrant {
+		for (uint256 i; i < token.length; i++)
+			_transferAssetCommissionToPiggyBox(token[i], amount[i]);
 	}
 
 	/**
@@ -437,27 +446,24 @@ contract GiftyController is
 				anotherTokenInPool: anotherTokenInPool,
 				secondsAgo: secondsAgo
 			});
-		} else revert Gifty__error_23();
+		} else revert Gifty__notWithGFT();
 
 		emit UniswapConfigChanged(pool, anotherTokenInPool, secondsAgo);
 	}
 
-	// TODO
-	function splitCommission() external onlyOwner {}
-
 	/* --------------------Internal functions-------------------- */
 	function _getPriceFeed(address asset) internal view returns (AggregatorV3Interface priceFeed) {
 		priceFeed = s_priceFeeds[asset];
-		if (address(priceFeed) == address(0)) revert Gifty__error_4(asset);
+		if (address(priceFeed) == address(0)) revert Gifty__priceFeedNotFound(asset);
 	}
 
 	/* --------------------Private functions-------------------- */
 	function _addToken(address token) private {
 		// Token already exist at Gifty platform
-		if (s_tokenInfo[token].isTokenAllowed) revert Gifty__error_24();
+		if (s_tokenInfo[token].isTokenAllowed) revert Gifty__alreadyAdded();
 
 		// Checking whether the address which are trying to add is a contract?
-		if (!token.isContract()) revert Gifty__error_0(token);
+		if (!token.isContract()) revert Gifty__notAnContract(token);
 
 		// The current length is the future index for the added token
 		uint256 newIndex = s_allowedTokens.length;
@@ -477,7 +483,7 @@ contract GiftyController is
 		TokenInfo memory tokenBeingDeletedInfo = s_tokenInfo[beingDeletedToken];
 
 		// Is there a token in the system at the moment? If not revert
-		if (!tokenBeingDeletedInfo.isTokenAllowed) revert Gifty__error_1(beingDeletedToken);
+		if (!tokenBeingDeletedInfo.isTokenAllowed) revert Gifty__NotInList(beingDeletedToken);
 
 		/*
 		  We take the last element in the available tokens
@@ -512,10 +518,11 @@ contract GiftyController is
 	}
 
 	function _transferAssetCommissionToPiggyBox(address asset, uint256 amount) private {
-		if (amount == 0) revert Gifty__error_8();
+		if (amount == 0) revert Gifty__zeroParam();
 
 		uint256 giftyCommissionBalance = s_giftyCommission[asset];
-		if (amount > giftyCommissionBalance) revert Gifty__error_6(amount, giftyCommissionBalance);
+		if (amount > giftyCommissionBalance)
+			revert Gifty__earnedAmountLtValue(amount, giftyCommissionBalance);
 
 		if (asset == _getETHAddress()) {
 			s_piggyBox.sendValue(amount);

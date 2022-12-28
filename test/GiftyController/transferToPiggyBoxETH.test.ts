@@ -24,7 +24,7 @@ describe("GiftyController | transferToPiggyBoxETH", function () {
 		const { gifty } = await loadFixture(GiftyFixture);
 
 		await expect(gifty.transferToPiggyBoxETH(expectedValue))
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_6")
+			.to.be.revertedWithCustomError(gifty, "Gifty__earnedAmountLtValue")
 			.withArgs(expectedValue, 0);
 	});
 

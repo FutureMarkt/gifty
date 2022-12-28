@@ -1,6 +1,11 @@
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
-import { MockV3Aggregator } from "../../typechain-types";
+import {
+	IERC20,
+	IERC20__factory,
+	MockV3Aggregator,
+} from "../../typechain-types";
+import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers"
 
 export interface GiftRefundSettings {
 	refundGiftWithCommissionThreshold: number;
@@ -39,6 +44,12 @@ export interface CommissionSettings {
 	commissions: Commissions;
 }
 
+export interface SplitCommission {
+    burnPercentage: number;
+	mintPercentage: number;
+	decimals: number;
+}
+
 export const OneEther: BigNumber = ethers.constants.WeiPerEther;
 export const PercentFromEther: BigNumber = OneEther.div(100);
 export const OneEtherGiftWithCommission: BigNumber = OneEther.add(PercentFromEther);
@@ -61,6 +72,22 @@ export const refundParams: GiftRefundSettings = {
 	freeRefundGiftThreshold: giftRefundWithoutCommissionThresholdInBlocks,
 	giftRefundCommission: refundGiftCommission,
 };
+
+export const spllitCommissionSettings: SplitCommission = {
+    mintPercentage: 3000,
+	burnPercentage: 0,
+	decimals: 2
+	
+}
+
+export interface SwapSettings {
+	router: string;
+	weth9: string;
+	middleToken: string;
+	swapFeeToMiddleToken: number;
+	swapFeeToGFT: number;
+}
+
 
 export const commissionSettings: CommissionSettings = {
 	thresholds: {
@@ -111,4 +138,13 @@ export async function getPriceOfExactETHAmount(
 ) {
 	const ethPrice: BigNumber = await getConvertedPrice(aggregator);
 	return ethPrice.mul(amount).div(OneEther);
+}
+
+export async function maxApprove( token: string | IERC20, approveTo: string, signer?: SignerWithAddress) {
+	let tokenContract: IERC20 =
+		typeof token == "string"
+			? (new ethers.Contract(token, IERC20__factory.abi, signer) as IERC20)
+			: token;
+
+	await tokenContract.approve(approveTo, ethers.constants.MaxUint256);
 }

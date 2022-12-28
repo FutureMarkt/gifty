@@ -7,12 +7,24 @@ error GiftyViewer__offsetGreaterThanLengthOfTheArray(uint256 offset, uint256 arr
 error GiftyViewer__amountOfElementsGreaterThanRemainingElements();
 
 contract GiftyViewer {
+	// Gifty address
 	address private immutable i_gifty;
 
+	/// @param gifty Gifty contract address
 	constructor(address gifty) {
 		i_gifty = gifty;
 	}
 
+	/**
+	 * @notice Getting desired amount of received gifts with offset of exact user
+	 *
+	 * @param user - user address
+	 * @param offsetFromLastGift - offset
+	 * @param amountOfGifts - desired amount of gifs
+	 *
+	 * @return 1'st array - gift's instance
+	 * @return 2'nd array - indexes of gifts in 1'st array
+	 */
 	function getUsersReceivedGiftBatche(
 		address user,
 		uint256 offsetFromLastGift,
@@ -23,6 +35,16 @@ contract GiftyViewer {
 		return _getExactGifts(currentUserReceivedGifts, offsetFromLastGift, amountOfGifts);
 	}
 
+	/**
+	 * @notice Getting desired amount of Given gifts with offset of exact user
+	 *
+	 * @param user - user address
+	 * @param offsetFromLastGift - offset
+	 * @param amountOfGifts - desired amount of gifs
+	 *
+	 * @return 1'st array - gift's instance
+	 * @return 2'nd array - indexes of gifts in 1'st array
+	 */
 	function getUsersGivenGiftBatche(
 		address user,
 		uint256 offsetFromLastGift,

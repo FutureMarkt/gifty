@@ -7,8 +7,9 @@ import {GiftyController, AddressUpgradeable, SafeERC20Upgradeable, IERC20Upgrade
 /* External libraries */
 import {PriceConverter} from "./GiftyLibraries/PriceConverter.sol";
 import {OracleLibrary} from "@uniswap/v3-periphery/contracts/libraries/OracleLibrary.sol";
+import {EIP712Upgradeable, ECDSAUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 
-contract Gifty is GiftyController {
+contract Gifty is GiftyController, EIP712Upgradeable {
 	using PriceConverter for *;
 	using AddressUpgradeable for address payable;
 	using SafeERC20Upgradeable for IERC20Upgradeable;
@@ -29,18 +30,19 @@ contract Gifty is GiftyController {
 		FT // Fungigle tokens, backward compatible with ERC-20
 	}
 
-	// Financial information in the user profile
 	// prettier-ignore
+	// Financial information in the user profile
 	struct FinancialInfo {
 		uint128 totalTurnoverInUSD;   // ---| The total price of gifts which user made
 		uint128 commissionPayedInUSD; // ---| The total amount paid by the user as commission
 	}
 
+	// prettier-ignore
 	// Each user's personal account
 	struct UserInfo {
-		uint256[] givenGifts; // An array of indexes of gifts that the user gave
+		uint256[] givenGifts;    // An array of indexes of gifts that the user gave
 		uint256[] receivedGifts; //  An array of gift indexes that the user received
-		FinancialInfo finInfo; // Described above, the structure of FinancialInfo
+		FinancialInfo finInfo;   // Described above, the structure of FinancialInfo
 	}
 
 	// prettier-ignore
@@ -51,11 +53,17 @@ contract Gifty is GiftyController {
 		uint96 amountInUSD;     // 12 bytes ---------| Gift price in dollars. uint96 - In order to reach the maximum value, the gift must be worth $79_228_162_514,26
 		uint256 amount;         // 32 bytes ---------| Quantitative representation of the gift
 		IERC20Upgradeable asset;// 20 bytes ---------| The address of the gift token, if it is ETH - the address will be represented by address(e)
-		TypeOfGift giftType;    // 1 byte (uint8) ---| Described above, enum TypeOfGift
+		TypeOfGift giftType;    // 1 byte -----------| Described above, enum TypeOfGift
 		uint32 giftedAtBlock;   // 4 bytes ----------| The number of the block in which the gift is sent.
 		uint40 giftedAtTime;   	// 5 bytes ----------| The timestamp when the gift was given. (Not used in the contract, but needed for the frontend)
 		bool isClaimed;         // 1 byte -----------| Has this gift been picked up yet?
 		bool isRefunded;        // 1 byte -----------| Did the giver return the gift?
+	}
+
+	// Structure for EIP-712
+	struct AssignReceiver {
+		address receiver; // Receiver address for the gift
+		uint256 giftId; // Id of the gift to which receiver should be assigned
 	}
 
 	/* --------------------State variables-------------------- */
@@ -69,16 +77,30 @@ contract Gifty is GiftyController {
 	// The amount that the user overpaid when giving ETH
 	mapping(address => uint256) private s_commissionSurplusesETH;
 
+	// Typehash of {AssignReceiver} struct
+	bytes32 private s_assignReceiverType;
+
 	/* --------------------Modifiers-------------------- */
 
 	// Check that the giver is not giving a gift to himself.
 	modifier validateReceiver(address receiver) {
-		if (receiver == msg.sender) revert Gifty__error_11();
+		if (receiver == msg.sender) revert Gifty__giverEqReceiver();
 		_;
 	}
 
 	/* --------------------Functions-------------------- */
 
+	/**
+	 * @notice Initialization of {Gifty}, can be performed only once.
+	 *
+	 * @param giftyToken - GFT address
+	 * @param piggyBox - PiggyBox address
+	 * @param uniswapV3Pool - UniswapV3Pool with GFT token
+	 * @param secondsAgo - secondsAgo for TWAP oracle
+	 * @param refundSettings - refund settings of the gifts
+	 * @param thresholds - gifts thresholds
+	 * @param commissions - commissions for the each {thresholds}
+	 */
 	function initialize(
 		address giftyToken,
 		address payable piggyBox,
@@ -97,15 +119,18 @@ contract Gifty is GiftyController {
 			thresholds,
 			commissions
 		);
+
+		__EIP712_init("Gifty", "1");
+		s_assignReceiverType = keccak256("AssignReceiver(address receiver,uint256 giftId)");
 	}
 
 	/**
 	 * @notice The gift of native currency.
 	 * @notice The commission amount must also be added to the amount of the gift sent.
-     * @notice The price of the gift must exceed the minimum threshold.
+	 * @notice The price of the gift must exceed the minimum threshold.
 	 * @notice A gift cannot be given to yourself.
 	 * @notice No re-entry can be performed.
-
+	 *
 	 * @param receiver - Address to whom you want to send the gift
 	 * @param amount - How much do you want to give the receiver
 	 */
@@ -120,6 +145,12 @@ contract Gifty is GiftyController {
 		_createGift(receiver, ETH, amount, giftPriceInUSD, TypeOfGift.ETH);
 	}
 
+	/**
+	 * @notice Similar to giftETH, except that the commission is charged in the GFT token
+	 * @notice A gift cannot be given to yourself.
+	 *
+	 * @param receiver - Address to whom you want to send the gift
+	 */
 	function giftETHWithGFTCommission(
 		address receiver
 	) external payable nonReentrant validateReceiver(receiver) {
@@ -154,6 +185,7 @@ contract Gifty is GiftyController {
 		address token,
 		uint256 amount
 	) external validateReceiver(receiver) {
+		if (token == s_giftyToken) revert Gifty__GFTTokenFromSimpleGift();
 		_giftToken(receiver, token, amount, TypeOfCommission.TOKEN);
 	}
 
@@ -175,19 +207,41 @@ contract Gifty is GiftyController {
 	 * @param giftId - The index of the gift you want to claim.
 	 */
 	function claimGift(uint256 giftId) external nonReentrant {
+		_claimGift(giftId);
+	}
+
+	/**
+	 * @notice Receive a gift to which the recipient has not been assigned.
+	 *
+	 * @notice Gift receiver must be address(0)
+	 * @notice The gift must not be taken away already.
+	 * @notice The gift must not already be refunded.
+	 * @notice Recovered address must be same with giver address
+	 *
+	 * @param giftId - id of the gift you want to claim.
+	 * @param v - part of the giver's signature
+	 * @param r - part of the giver's signature
+	 * @param s - part of the giver's signature
+	 */
+	function claimGiftWithPermit(
+		uint256 giftId,
+		uint8 v,
+		bytes32 r,
+		bytes32 s
+	) external nonReentrant {
 		Gift memory currentGift = s_allGifts[giftId];
 
-		// Condition validation
-		_validateGiftUnpacking(
-			currentGift.receiver,
-			currentGift.isClaimed,
-			currentGift.isRefunded
-		);
+		if (currentGift.receiver != address(0)) revert Gifty__hasReceiver();
 
-		_sendGift(currentGift.giftType, currentGift.asset, currentGift.amount);
+		bytes32 structHash = hashAssignReceiverStruct(s_assignReceiverType, msg.sender, giftId);
+		bytes32 digest = _hashTypedDataV4(structHash);
 
-		s_allGifts[giftId].isClaimed = true;
-		emit GiftClaimed(giftId);
+		address potentialGiver = ECDSAUpgradeable.recover(digest, v, r, s);
+		if (currentGift.giver != potentialGiver) revert Gifty__recoveredAddressDoesNotMatch();
+
+		s_allGifts[giftId].receiver = msg.sender;
+
+		_claimGift(giftId);
 	}
 
 	/**
@@ -236,7 +290,7 @@ contract Gifty is GiftyController {
 			);
 		}
 		// else revert (refundGiftWithCommissionThreshold < diff < freeRefundGiftThreshold)
-		else revert Gifty__error_15();
+		else revert Gifty__temporarilyUnavailable();
 
 		_sendGift(currentGift.giftType, currentGift.asset, refundAmount);
 
@@ -244,9 +298,13 @@ contract Gifty is GiftyController {
 		emit GiftRefunded(giftId);
 	}
 
+	/**
+	 * @notice Receiving excess ETH that could have been mistakenly paid when giving ETH with an ETH commission.
+	 * @notice The amount of overpaid ETH must be greater than 0
+	 */
 	function claimSurplusesETH() external {
 		uint256 surpluses = s_commissionSurplusesETH[msg.sender];
-		if (surpluses == 0) revert Gifty__error_7();
+		if (surpluses == 0) revert Gifty__zeroOverpaidAmount();
 
 		delete s_commissionSurplusesETH[msg.sender];
 		payable(msg.sender).sendValue(surpluses);
@@ -256,6 +314,7 @@ contract Gifty is GiftyController {
 
 	/* --------------------Charge commission functions-------------------- */
 
+	// The main entry point for calculating and debiting the commission for a gift.
 	function _chargeCommission(
 		address asset,
 		uint256 assetAmount,
@@ -319,7 +378,7 @@ contract Gifty is GiftyController {
 		uint256 assetAmount,
 		uint256 commissionRate
 	) private returns (uint256 commissionCharged) {
-		if (msg.value < assetAmount) revert Gifty__error_5(assetAmount, msg.value);
+		if (msg.value < assetAmount) revert Gifty__amountLtValue(assetAmount, msg.value);
 
 		/* 
                 When giving ETH and paying commission in ETH - 
@@ -337,7 +396,7 @@ contract Gifty is GiftyController {
 
 		// Delta less commission? If so, revert.
 		if (commissionPaid < commissionShouldBePaid)
-			revert Gifty__error_3(commissionPaid, commissionShouldBePaid);
+			revert Gifty__commissionNotPayed(commissionPaid, commissionShouldBePaid);
 		/*
                 Delta more commission? If yes, then let the user then withdraw it.
 
@@ -351,6 +410,7 @@ contract Gifty is GiftyController {
 		s_giftyCommission[asset] += commissionShouldBePaid;
 	}
 
+	// Calculate GFT equivalent to USD amount
 	function _getCommissionAmountInGFT(
 		uint256 priceInUSD,
 		uint256 commissionRate
@@ -404,15 +464,32 @@ contract Gifty is GiftyController {
 		emit GiftCreated(msg.sender, receiver, assetToGift, assetAmount, newGiftIndex);
 	}
 
+	// Universal Gift claim.
+	function _claimGift(uint256 giftId) internal {
+		Gift memory currentGift = s_allGifts[giftId];
+
+		// Condition validation
+		_validateGiftUnpacking(
+			currentGift.receiver,
+			currentGift.isClaimed,
+			currentGift.isRefunded
+		);
+
+		_sendGift(currentGift.giftType, currentGift.asset, currentGift.amount);
+
+		s_allGifts[giftId].isClaimed = true;
+		emit GiftClaimed(giftId);
+	}
+
 	// Validation of access to the gift interaction.
 	function _validateGiftUnpacking(
 		address unpacker,
 		bool isClaimed,
 		bool isRefunded
 	) internal view {
-		if (unpacker != msg.sender) revert Gifty__error_12();
-		else if (isClaimed) revert Gifty__error_13();
-		else if (isRefunded) revert Gifty__error_14();
+		if (unpacker != msg.sender) revert Gifty__accessDenied();
+		else if (isClaimed) revert Gifty__alreadyClaimed();
+		else if (isRefunded) revert Gifty__alreadyRefunded();
 	}
 
 	// Universal sending of a gift depending on its type.
@@ -427,7 +504,7 @@ contract Gifty is GiftyController {
 	}
 
 	/* --------------------FinInfo updates functions -------------------- */
-
+	// Update the user financial information after giving the gift
 	function _updateTheUserFinInfo(uint256 giftPriceInUSD, uint256 commissionRate) internal {
 		/*
             Calculate the equivalent of the gift amount and commission in USD,
@@ -442,6 +519,7 @@ contract Gifty is GiftyController {
 		currentUserFinInfo.commissionPayedInUSD += commissionInUSD.toUint128();
 	}
 
+	// Update the user financial information after gift refund
 	function _updateTheUserFinInfoRefund(
 		uint256 giftPriceInUSD,
 		uint256 commissionRate,
@@ -459,13 +537,14 @@ contract Gifty is GiftyController {
 
 	/* --------------------Token interactions-------------------- */
 
+	// Token giving logic
 	function _giftToken(
 		address receiver,
 		address token,
 		uint256 amount,
 		TypeOfCommission commissionType
 	) private {
-		if (!s_tokenInfo[token].isTokenAllowed) revert Gifty__error_16(token);
+		if (!s_tokenInfo[token].isTokenAllowed) revert Gifty__notSupported(token);
 
 		uint256 giftPriceInUSD = _getPriceOfAsset(token, amount);
 
@@ -515,7 +594,7 @@ contract Gifty is GiftyController {
 			abi.encodeWithSelector(IERC20Upgradeable.balanceOf.selector, address(this))
 		);
 
-		if (!success || data.length < 32) revert Gifty__error_19();
+		if (!success || data.length < 32) revert Gifty__balanceReceivingError();
 		return abi.decode(data, (uint256));
 	}
 
@@ -557,7 +636,7 @@ contract Gifty is GiftyController {
 			tokenOut
 		);
 
-		if (amountOut == 0) revert Gifty__error_22();
+		if (amountOut == 0) revert Gifty__zeroPriceFromOracle();
 
 		return amountOut;
 	}
@@ -574,7 +653,7 @@ contract Gifty is GiftyController {
 		return block.timestamp.toUint40();
 	}
 
-	/* --------------------calculating-------------------- */
+	/* --------------------Other-------------------- */
 
 	// Calculating the commission.
 	// The minimum amount is 10000, since values less than that are subject to lossy rounding.
@@ -584,10 +663,19 @@ contract Gifty is GiftyController {
 		uint256 commissionRate
 	) internal pure returns (uint256) {
 		uint256 minimumValue = 10000;
-		if (amount < minimumValue) revert Gifty__error_2(amount, minimumValue);
+		if (amount < minimumValue) revert Gifty__ltMinValue(amount, minimumValue);
 
 		uint256 decimals = 2;
 		return (amount * commissionRate) / (100 * 10 ** decimals);
+	}
+
+	// EIP-712 hash struct function
+	function hashAssignReceiverStruct(
+		bytes32 typeHash,
+		address receiver,
+		uint256 giftId
+	) private pure returns (bytes32) {
+		return keccak256(abi.encode(typeHash, receiver, giftId));
 	}
 
 	/* --------------------Getter functions-------------------- */
@@ -603,7 +691,7 @@ contract Gifty is GiftyController {
 
 		// price < threshold 1
 		if (settings.thresholds.t1.to18Decimals(0) > giftPriceInUSD)
-			revert Gifty__error_9(giftPriceInUSD, settings.thresholds.t1.to18Decimals(0));
+			revert Gifty__tooLowGiftPrice(giftPriceInUSD, settings.thresholds.t1.to18Decimals(0));
 		// threshold 1 < price < threshold 2
 		else if (giftPriceInUSD < settings.thresholds.t2.to18Decimals(0))
 			return (settings.commissions.full.l1, settings.commissions.reduced.l1);
@@ -617,26 +705,35 @@ contract Gifty is GiftyController {
 		else return (settings.commissions.full.l4, settings.commissions.reduced.l4);
 	}
 
-	function getGiftsAmount() external view returns (uint256) {
-		return s_allGifts.length;
-	}
-
-	function getAllGifts() external view returns (Gift[] memory) {
-		return s_allGifts;
-	}
-
+	/// @param giftId - Id of the gift you want to receive information about
+	/// @return information about a specific gift
 	function getExactGift(uint256 giftId) external view returns (Gift memory) {
 		return s_allGifts[giftId];
 	}
 
-	function getOverpaidETHAmount(address user) external view returns (uint256) {
-		return s_commissionSurplusesETH[user];
-	}
-
+	/// @param user - address of the user about whom you want to get information
+	/// @return information about exact user
 	function getUserInfo(address user) external view returns (UserInfo memory) {
 		return s_userInformation[user];
 	}
 
+	/// @param user - the user's address is the overpaid amount of ETH you want to get
+	/// @return overpaid amount of ETH by this user
+	function getOverpaidETHAmount(address user) external view returns (uint256) {
+		return s_commissionSurplusesETH[user];
+	}
+
+	/// @return array of all gifts
+	function getAllGifts() external view returns (Gift[] memory) {
+		return s_allGifts;
+	}
+
+	/// @return amount of given gifts
+	function getGiftsAmount() external view returns (uint256) {
+		return s_allGifts.length;
+	}
+
+	/// @return version of the contract
 	function version() external pure virtual returns (uint256) {
 		return 1;
 	}

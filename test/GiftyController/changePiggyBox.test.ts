@@ -17,7 +17,7 @@ describe("GiftyController | changePiggyBox", function () {
 
 		await expect(
 			gifty.changePiggyBox(ZeroAddress)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("PiggyBox changed setted", async function () {

@@ -51,7 +51,7 @@ describe("GiftyController | changeGiftyToken", function () {
 
 		await expect(
 			gifty.changeGiftyToken(ZeroAddress, NonZeroAddress, secAgo)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("If pool is zero address - revert", async function () {
@@ -59,7 +59,7 @@ describe("GiftyController | changeGiftyToken", function () {
 
 		await expect(
 			gifty.changeGiftyToken(NonZeroAddress, ZeroAddress, secAgo)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("If giftyToken already exist should be called deleteToken", async function () {

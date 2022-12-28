@@ -9,5 +9,10 @@ typechain-types
 cache
 artifacts
 gasReport.txt
-.DS_Store
+
+#OZ files
 .openzeppelin
+
+#Other
+.DS_Store
+.vscode

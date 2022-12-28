@@ -37,10 +37,8 @@ library PriceConverter {
 	function getConversionRate(
 		uint256 currencyAmount,
 		AggregatorV3Interface priceFeed
-	) internal view returns (uint256) {
+	) internal view returns (uint256 usdAmount) {
 		uint256 currencyPrice = getPrice(priceFeed);
-		uint256 usdAmount = (currencyPrice * currencyAmount) / 1e18;
-
-		return usdAmount;
+		usdAmount = (currencyPrice * currencyAmount) / 1e18;
 	}
 }

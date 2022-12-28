@@ -27,7 +27,10 @@ describe("GiftyController | changePriceFeedsForTokens", function () {
 				[NonZeroAddress, NonZeroAddress]
 			)
 		)
-			.to.be.revertedWithCustomError(gifty, "Gifty__error_10")
+			.to.be.revertedWithCustomError(
+				gifty,
+				"Gifty__theLengthsDoNotMatch"
+			)
 			.withArgs(1, 2);
 	});
 
@@ -39,7 +42,7 @@ describe("GiftyController | changePriceFeedsForTokens", function () {
 				[sampleToken, ZeroAddress],
 				[NonZeroAddress, NonZeroAddress]
 			)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("One of the aggregator addresses is zero address - revert", async function () {
@@ -50,7 +53,7 @@ describe("GiftyController | changePriceFeedsForTokens", function () {
 				[sampleToken, piggyBox.address],
 				[NonZeroAddress, ZeroAddress]
 			)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("Price feed correctly changed", async function () {

@@ -23,7 +23,7 @@ describe("GiftyController | chnageUniswapConfig", function () {
 
 		await expect(
 			gifty.changeUniswapConfig(ZeroAddress, 0)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("Pool correctly changed", async function () {
@@ -153,6 +153,6 @@ describe("GiftyController | chnageUniswapConfig", function () {
 
 		await expect(
 			gifty.changeUniswapConfig(newPool.address, newSecondsAgo)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_23");
+		).to.be.revertedWithCustomError(gifty, "Gifty__notWithGFT");
 	});
 });

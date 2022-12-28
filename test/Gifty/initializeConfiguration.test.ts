@@ -23,7 +23,7 @@ describe("Gifty | Initialize configuration", function () {
 				commissionSettings.thresholds,
 				commissionSettings.commissions
 			)
-		).to.be.revertedWithCustomError(gifty, "Gifty__error_8");
+		).to.be.revertedWithCustomError(gifty, "Gifty__zeroParam");
 	});
 
 	it("Initialize should be called once", async function () {
