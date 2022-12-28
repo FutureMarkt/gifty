@@ -81,6 +81,7 @@ contract GiftyController is
 		ReducedComissionRate reduced; // 16 bytes ---|
 	}
 
+	// Commission settings collected together.
 	struct CommissionSettings {
 		CommissionThresholds thresholds; // 1 slot
 		Commissions commissions; // 1 slot
@@ -96,12 +97,7 @@ contract GiftyController is
 	address internal s_giftyToken;
 
 	// The contract to which the EARNED* commission from all gifts is transferred.
-	// EARNED - commission after all burning deductions and other manipulations.
 	address payable private s_piggyBox;
-
-	// To get the price in usd, we use the Chainlink Data Feeds,
-	// each token has its own contract for displaying the price of tokens in relation to the USD.
-	mapping(address => AggregatorV3Interface) internal s_priceFeeds;
 
 	// gift refund settings.
 	GiftRefundSettings internal s_giftRefundSettings;
@@ -115,6 +111,10 @@ contract GiftyController is
 	// We save the amount of each asset the contract received as a commission.
 	mapping(address => uint256)
 		internal s_giftyCommission; /* asset address */ /* earned commission */
+
+	// To get the price in usd, we use the Chainlink Data Feeds,
+	// each token has its own contract for displaying the price of tokens in relation to the USD.
+	mapping(address => AggregatorV3Interface) internal s_priceFeeds;
 
 	// Gap for future upgrades.
 	// To learn more: [https://docs.openzeppelin.com/upgrades-plugins/1.x/writing-upgradeable#storage-gaps]
@@ -168,6 +168,15 @@ contract GiftyController is
 		changeCommissionSettings(thresholds, commissions);
 	}
 
+	/**
+	 * @notice Changes GiftyToken, since the liquidity pool from UniswapV3 is also associated with this, we must change it as well.
+	 * @notice The function is only available to the owner.
+	 * @notice
+	 *
+	 * @param newGiftyToken - new GFT address | must be non-zero address
+	 * @param pool - address of the UniswapV3Pool | must be non-zero address
+	 * @param secondsAgo - secondsAgo for TWAP oracle
+	 */
 	function changeGiftyToken(
 		address newGiftyToken,
 		address pool,
